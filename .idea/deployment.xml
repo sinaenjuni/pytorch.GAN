@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="gan-serise1" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="sin@168.188.125.197:22 password" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="gan-serise1">
+      <paths name="sin@168.188.125.197:22 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/sin/git/GAN_serise1.basic-gan" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/sin/git/GAN_serise1.basic-gan" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
