@@ -113,20 +113,20 @@ for i in range(start_iters, max_iters):
     # Train Discriminator (Optimizer Discriminator)
     ###
     real_outputs = D(real_img)
-    d_loss_real = criterion(real_outputs, real_labels)
-    # d_loss_real = -1 * torch.log(real_outputs) # -1 for gradient ascending
+    # d_loss_real = criterion(real_outputs, real_labels)
+    d_loss_real = -1 * torch.log(real_outputs) # -1 for gradient ascending
     real_score = real_outputs
 
     # print(real_outputs)
 
     fake_img = G(latent_input)
     fake_outputs = D(fake_img)
-    d_loss_fake = criterion(fake_outputs, fake_labels)
-    # d_loss_fake = -1 * torch.log(1.-fake_outputs) # -1 for gradient ascending
+    # d_loss_fake = criterion(fake_outputs, fake_labels)
+    d_loss_fake = -1 * torch.log(1.-fake_outputs) # -1 for gradient ascending
     fake_score = fake_outputs
 
-    d_loss = d_loss_real + d_loss_fake
-    # d_loss = (d_loss_real + d_loss_fake).mean()
+    # d_loss = d_loss_real + d_loss_fake
+    d_loss = (d_loss_real + d_loss_fake).mean()
     reset_grad()
     d_loss.backward()
     d_optimizer.step()
@@ -138,9 +138,9 @@ for i in range(start_iters, max_iters):
 
     fake_img = G(latent_input)
     fake_outputs = D(fake_img)
-    g_loss = criterion(fake_outputs, real_labels)
+    # g_loss = criterion(fake_outputs, real_labels)
     # instead of: torch.log(1.-p_fake).mean() <- explained in Section 3
-    # g_loss = -1 * torch.log(fake_outputs).mean()
+    g_loss = -1 * torch.log(fake_outputs).mean()
 
     reset_grad()
     g_loss.backward()
