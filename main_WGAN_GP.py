@@ -102,14 +102,17 @@ def getLatentVector(batch_size):
     return torch.randn(batch_size, latent_size)
 
 def compute_gradient_penalty(D, real_samples, fake_samples):
+    real_samples = real_samples.reshape(real_samples.size(0), 1, 28, 28).to(device)
+    fake_samples = fake_samples.reshape(fake_samples.size(0), 1, 28, 28).to(device)
+
     """Calculates the gradient penalty loss for WGAN GP"""
     # Random weight term for interpolation between real and fake samples
-    alpha = torch.rand((real_samples.size())).to(device)
+    alpha = torch.rand(real_samples.size(0), 1, 1, 1).to(device)
     # Get random interpolation between real and fake samples
-    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
-    d_interpolates = D(interpolates)
+    interpolates = (alpha * real_samples.data + ((1 - alpha) * fake_samples.data)).requires_grad_(True)
+    d_interpolates = D(interpolates.reshape(real_samples.size(0), -1))
 
-    weights = torch.ones(real_samples.size()).to(device)
+    weights = torch.ones(d_interpolates.size()).to(device)
     # Get gradient w.r.t. interpolates
     gradients = torch.autograd.grad(
         outputs=d_interpolates,
@@ -128,8 +131,8 @@ def compute_gradient_penalty(D, real_samples, fake_samples):
 
 for i in range(start_iters, max_iters):
     iter_loader = iter(loader)
-    real_img, _ = iter_loader.next()
-    real_img = real_img.reshape(-1, image_size).to(device)
+    real_img_ori, _ = iter_loader.next()
+    real_img = real_img_ori.reshape(-1, image_size).to(device)
 
     latent_input = getLatentVector(batch_size).to(device)
 
@@ -144,7 +147,7 @@ for i in range(start_iters, max_iters):
     fake_outputs = D(fake_img)
     fake_score = fake_outputs
 
-    gradient_penalty = compute_gradient_penalty(D, real_img.data, fake_img.data)
+    gradient_penalty = compute_gradient_penalty(D, real_img_ori.data, fake_img.data)
     d_loss = -torch.mean(real_outputs) + torch.mean(fake_outputs) + lambda_gp * gradient_penalty
 
     d_optimizer.zero_grad()
