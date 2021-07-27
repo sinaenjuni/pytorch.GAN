@@ -1,1 +1,1 @@
-# GAN_serise1.basic-gan
+# GAN basics with Pytorch
