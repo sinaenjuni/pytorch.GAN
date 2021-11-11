@@ -12,9 +12,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-print(torch.cuda.is_available())
+print('GPU state:', torch.cuda.is_available())
 isUse_cuda = torch.cuda.is_available()
-device = torch.device('cuda' if isUse_cuda else 'cpu')
+device = torch.device('cuda' if is_cuda else 'cpu')
 
 
 ###
