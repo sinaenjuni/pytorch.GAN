@@ -12,20 +12,29 @@ print('device:', device)
 
 # TensorBoard define
 comment = 'test1'
-log_dir = '../tb_logs'
+log_dir = '../tb_logs/DCGAN/Test1'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 tb = SummaryWriter(log_dir=log_dir, comment=comment)
 
 # Hyper-parameters
+nc=1
+nz=100
+ngf=64
+ndf=64
+
 latent_size = 64
 hidden_size = 256
-image_size = 784
+image_size = 64
 num_epochs = 200
-batch_size = 100
+batch_size = 128
 learning_rate = 0.0002
-sample_dir = '../samples'
+beta1 = 0.5
+beta2 = 0.999
 
+fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
+
+sample_dir = '../samples'
 # Create a directory if not exists
 if not os.path.exists(sample_dir):
     os.makedirs(sample_dir)
@@ -41,6 +50,7 @@ def denorm(x):
 #                                      std=(0.5, 0.5, 0.5))])
 
 transform = transforms.Compose([
+    transforms.Resize(image_size),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5],  # 1 for greyscale channels
                          std=[0.5])])
@@ -103,7 +113,7 @@ class Generator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d( nz, ngf * 8, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
@@ -111,15 +121,15 @@ class Generator(nn.Module):
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True),
             # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d( ngf * 4, ngf * 2, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True),
             # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d( ngf * 2, ngf, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d( ngf, nc, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(ngf, nc, 4, 2, 1, bias=False),
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
@@ -128,8 +138,8 @@ class Generator(nn.Module):
         return self.main(input)
 
 # Device setting
-D = D.to(device)
-G = G.to(device)
+D = Discriminator.to(device)
+G = Generator.to(device)
 
 D.apply(weights_init)
 G.apply(weights_init)
@@ -137,8 +147,8 @@ G.apply(weights_init)
 
 # Binary cross entropy loss and optimizer
 criterion = nn.BCELoss()
-d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate)
-g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate)
+d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(beta1, beta2))
+g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(beta1, beta2))
 
 def reset_grad():
     d_optimizer.zero_grad()
@@ -165,6 +175,7 @@ for epoch in range(num_epochs):
         # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
         # Second term of the loss is always zero since real_labels == 1
         outputs = D(images)
+        outputs = outputs.view(-1)
         d_loss_real = criterion(outputs, real_labels)
         real_score = outputs
 
@@ -174,6 +185,7 @@ for epoch in range(num_epochs):
         fake_images = G(z)
 
         outputs = D(fake_images)
+        outputs = outputs.view(-1)
         d_loss_fake = criterion(outputs, fake_labels)
         fake_score = outputs
 
