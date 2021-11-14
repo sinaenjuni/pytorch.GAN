@@ -20,8 +20,8 @@ tb = SummaryWriter(log_dir=log_dir, comment=comment)
 # Hyper-parameters
 nc=1
 nz=100
-ngf=64
-ndf=64
+ngf=32
+ndf=32
 
 latent_size = 64
 hidden_size = 256
@@ -31,6 +31,8 @@ batch_size = 128
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999
+ngpu = 1
+
 
 fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
 
@@ -138,8 +140,8 @@ class Generator(nn.Module):
         return self.main(input)
 
 # Device setting
-D = Discriminator.to(device)
-G = Generator.to(device)
+D = Discriminator(ngpu).to(device)
+G = Generator(ngpu).to(device)
 
 D.apply(weights_init)
 G.apply(weights_init)
@@ -159,11 +161,13 @@ def reset_grad():
 total_step = len(data_loader)
 for epoch in range(num_epochs):
     for i, (images, _) in enumerate(data_loader):
-        images = images.reshape(batch_size, -1).to(device)
+        # images = images.reshape(batch_size, -1).to(device)
+        batch = images.size(0)
+        images = images.to(device)
 
         # Create the labels which are later used as input for the BCE loss
-        real_labels = torch.ones(batch_size, 1).to(device)
-        fake_labels = torch.zeros(batch_size, 1).to(device)
+        real_labels = torch.ones((batch,) ).to(device)
+        fake_labels = torch.zeros((batch,) ).to(device)
 
         # Labels shape is (batch_size, 1): [batch_size, 1]
 
@@ -181,10 +185,11 @@ for epoch in range(num_epochs):
 
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
-        z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
+        # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
+        z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
         fake_images = G(z)
 
-        outputs = D(fake_images)
+        outputs = D(fake_images.detach())
         outputs = outputs.view(-1)
         d_loss_fake = criterion(outputs, fake_labels)
         fake_score = outputs
@@ -200,9 +205,10 @@ for epoch in range(num_epochs):
         # ================================================================== #
 
         # Compute loss with fake images
-        z = torch.randn(batch_size, latent_size).to(device)
+        # z = torch.randn(batch_size, latent_size).to(device)
         fake_images = G(z)
         outputs = D(fake_images)
+        outputs = outputs.view(-1)
         gened_score = outputs
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
@@ -221,17 +227,17 @@ for epoch in range(num_epochs):
                           real_score.mean().item(), fake_score.mean().item()))
 
     # Save real images
-    if (epoch + 1) == 1:
-        images = images.reshape(images.size(0), 1, 28, 28)
-        save_image(denorm(images), os.path.join(sample_dir, 'real_images.png'))
+    # if (epoch + 1) == 1:
+    #     images = images.reshape(images.size(0), 1, 28, 28)
+    #     save_image(denorm(images), os.path.join(sample_dir, 'real_images.png'))
 
     tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
     tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
     tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
     tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
 
-    fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
-    tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=fake_images)
+    result_images = denorm(G(fixed_noise))
+    tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=result_images)
 
     # Save sampled images
     # fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
