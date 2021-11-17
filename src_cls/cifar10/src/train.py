@@ -12,6 +12,11 @@ import pandas as pd
 import seaborn as sns
 import numpy as np
 
+import sys
+sys.path.append('/'.join(os.path.dirname(__file__).split('/')[:-2]))
+from utils.dataset import sliceDataset
+
+
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
@@ -22,7 +27,7 @@ batch_size = 100
 num_epochs = 200
 learning_rate = 0.001
 
-name = 'cifar10/test1'
+name = 'cifar10/original'
 
 # Weights save path
 weights_path = '../weights/' + name
@@ -54,37 +59,38 @@ test_dataset = torchvision.datasets.CIFAR10(root='../../../data/',
                                    download=True)
 
 # Dataset modify
-labels = torch.tensor(train_dataset.targets)
 classes = train_dataset.class_to_idx
-transformed_train_dataset = []
-subdata_count = {'class':[], 'count': []}
+train_labels = torch.tensor(train_dataset.targets)
+ratio = [0.5**i for i in range(len(classes))]
+print(classes)
+print(train_labels)
+print(ratio)
 
-for i, (name, idx) in enumerate(classes.items()):
-    target_label_indeces = torch.where(labels == idx)[0].numpy()
-    print(i, name, target_label_indeces, len(target_label_indeces))
-    data_subset = Subset(train_dataset, target_label_indeces)
+transformed_dataset, count= sliceDataset(dataset=train_dataset,
+                                     class_index=classes,
+                                     labels=train_labels,
+                                     lratio=ratio)
 
-    # if c != 0:
-    ratio = len(data_subset) * (1 * 0.5**i)
-    ratio = int(ratio)
-    data_subset = Subset(data_subset, range(ratio))
-    print(len(data_subset))
-    transformed_train_dataset += [data_subset]
-
-    subdata_count['class'] += [name]
-    subdata_count['count'] += [len(data_subset)]
-
-transformed_dataset = ConcatDataset(transformed_train_dataset)
-
-fig = plt.figure(figsize=(10, 5))
+fig = plt.figure(figsize=(9, 6))
 sns.barplot(
-    data=subdata_count,
+    data=count,
     x="class",
-    y="count"
+    y="original"
 )
-fig.tight_layout()
-tb.add_figure(tag='data_dist', figure=fig)
+plt.tight_layout()
+tb.add_figure(tag='original_data_dist', figure=fig)
 # plt.show()
+
+fig = plt.figure(figsize=(9, 6))
+sns.barplot(
+    data=count,
+    x="class",
+    y="transformed"
+)
+plt.tight_layout()
+tb.add_figure(tag='transformed_data_dist', figure=fig)
+# plt.show()
+
 
 
 
@@ -206,5 +212,6 @@ for epoch in range(num_epochs):
         sns.heatmap(df_cm, annot=True, fmt="d", cmap='BuGn')
         plt.xlabel("prediction")
         plt.ylabel("label (ground truth)")
+        plt.tight_layout()
         tb.add_figure(tag='confusion_matrix', global_step=epoch + 1, figure=fig)
         # plt.close(fig)
