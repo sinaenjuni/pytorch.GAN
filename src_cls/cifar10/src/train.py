@@ -27,7 +27,7 @@ batch_size = 100
 num_epochs = 200
 learning_rate = 0.001
 
-name = 'cifar10/original'
+name = 'cifar10/transformed'
 
 # Weights save path
 weights_path = '../weights/' + name
@@ -95,7 +95,7 @@ tb.add_figure(tag='transformed_data_dist', figure=fig)
 
 
 # Data loader
-train_data_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+train_data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 
