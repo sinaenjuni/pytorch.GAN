@@ -27,7 +27,7 @@ batch_size = 100
 num_epochs = 200
 learning_rate = 0.001
 
- mname = 'mnist/transformed'
+name = 'mnist/transformed'
 
 # Weights save path
 weights_path = '../weights/' + name

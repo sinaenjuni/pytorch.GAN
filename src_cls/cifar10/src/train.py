@@ -66,7 +66,7 @@ print(classes)
 print(train_labels)
 print(ratio)
 
-transformed_dataset, count= sliceDataset(dataset=train_dataset,
+transformed_dataset, count = sliceDataset(dataset=train_dataset,
                                      class_index=classes,
                                      labels=train_labels,
                                      lratio=ratio)
