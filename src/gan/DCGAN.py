@@ -2,6 +2,7 @@ import os
 import torch
 import torchvision
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
@@ -11,13 +12,16 @@ import sys
 sys.path.append('..')
 from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
+from models.resnet import ResNet18
+
+name = 'DCGAN/test1_im'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # TensorBoard define
-tensorboard_path = '../../tb_logs/DCGAN/test1'
+tensorboard_path = f'../../tb_logs/{name}'
 tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
@@ -83,10 +87,7 @@ test_dataset = torchvision.datasets.CIFAR10(root='../../data/',
                                    transform=transform,
                                    download=True)
 
-# Data loader
-data_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                          batch_size=batch_size,
-                                          shuffle=True)
+
 
 # Dataset modify
 classes = {'plane':0, 'car':1, 'bird':2, 'cat':3,
@@ -108,6 +109,12 @@ sns.barplot(
 )
 plt.tight_layout()
 tb.add_figure(tag='original_data_dist', figure=fig)
+
+
+# Data loader
+data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
+                                          batch_size=batch_size,
+                                          shuffle=True)
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -141,8 +148,8 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(ndf * 4, 1, 4, 1, 0, bias=False),
-            nn.Sigmoid()
+            nn.Conv2d(ndf * 4, 1, 4, 1, 0, bias=False)
+            # nn.Sigmoid()
         )
 
     def forward(self, input):
@@ -197,14 +204,21 @@ G = Generator(ngpu).to(device)
 #         print(y.size())
 #         temp_in = y
 
-D.apply(weights_init)
-G.apply(weights_init)
+# D.apply(weights_init)
+# G.apply(weights_init)
 
+SAVE_PATH = f'../../weights/DCGAN/test1/'
+G.load_state_dict(torch.load(SAVE_PATH + 'G_200.pth'))
+D.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'))
 
 # Binary cross entropy loss and optimizer
-criterion = nn.BCELoss()
+# criterion = nn.BCELoss()
 d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(beta1, beta2))
 g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(beta1, beta2))
+
+# d_optimizer = torch.optim.RMSprop(D.parameters(), lr = 0.00005)#, weight_decay=opt.weight_decay_D)
+# g_optimizer = torch.optim.RMSprop(G.parameters(), lr = 0.00005, weight_decay=0)
+
 
 def reset_grad():
     d_optimizer.zero_grad()
@@ -234,7 +248,8 @@ for epoch in range(num_epochs):
         # Second term of the loss is always zero since real_labels == 1
         outputs = D(images)
         outputs = outputs.view(-1)
-        d_loss_real = criterion(outputs, real_labels)
+        # d_loss_real = criterion(outputs, real_labels)
+        d_loss_real = F.relu(1.-outputs).mean()
         real_score = outputs
 
         # Compute BCELoss using fake images
@@ -245,7 +260,8 @@ for epoch in range(num_epochs):
 
         outputs = D(fake_images.detach())
         outputs = outputs.view(-1)
-        d_loss_fake = criterion(outputs, fake_labels)
+        # d_loss_fake = criterion(outputs, fake_labels)
+        d_loss_fake = F.relu(1.+outputs).mean()
         fake_score = outputs
 
         # Backprop and optimize
@@ -267,7 +283,8 @@ for epoch in range(num_epochs):
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
-        g_loss = criterion(outputs, real_labels)
+        # g_loss = criterion(outputs, real_labels)
+        g_loss = -outputs.mean()
 
         # Backprop and optimize
         reset_grad()
@@ -288,10 +305,12 @@ for epoch in range(num_epochs):
                    main_tag='loss',
                    tag_scalar_dict={'discriminator':d_loss.item(),
                                     'generator':g_loss.item()})
+
     tb.add_scalars(global_step=epoch + 1,
                    main_tag='score',
                    tag_scalar_dict={'real':real_score.mean().item(),
                                     'fake':fake_score.mean().item()})
+
     # tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
     # tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
     # tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
@@ -304,6 +323,12 @@ for epoch in range(num_epochs):
     # fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
     # save_image(denorm(fake_images), os.path.join(sample_dir, 'fake_images-{}.png'.format(epoch + 1)))
 
-# Save the model checkpoints
-# torch.save(G.state_dict(), 'G.ckpt')
-# torch.save(D.state_dict(), 'D.ckpt')
+
+
+
+    # Save the model checkpoints
+    SAVE_PATH = f'../../weights/{name}/'
+    if not os.path.exists(SAVE_PATH):
+        os.makedirs(SAVE_PATH)
+    torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
+    torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')

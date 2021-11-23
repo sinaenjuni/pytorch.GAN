@@ -2,7 +2,7 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="Remote Python 3.6.13 (sftp://sin@168.188.125.197:22/home/sin/.conda/envs/gan/bin/python3.6)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="cnu.gan" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

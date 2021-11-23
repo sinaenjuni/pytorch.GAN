@@ -3,6 +3,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 from torchvision import transforms, datasets
 import matplotlib.pyplot as plt
@@ -16,8 +17,8 @@ from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from models.resnet import ResNet18
 
-name = 'test1_im'
-tensorboard_path = f'../../tb_logs/ResNet18/{name}'
+name = 'prop3/test1'
+tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -29,6 +30,11 @@ tb = getTensorboard(tensorboard_path)
 num_epochs = 200
 batch_size = 64
 learning_rate = 0.002
+
+nc=3
+ngf=32
+ndf=32
+ngpu=1
 
 
 # Transformation define
@@ -93,10 +99,60 @@ test_data_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                                shuffle=False)
 
 
-# Model define
-model = ResNet18().to(device)
-print(model)
+# custom weights initialization called on netG and netD
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
+
+# Discriminator
+class Discriminator(nn.Module):
+    def __init__(self, ngpu):
+        super(Discriminator, self).__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            # input is (nc) x 64 x 64
+            # nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+            # nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf) x 32 x 32
+            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*2) x 16 x 16
+            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*4) x 8 x 8
+            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*8) x 4 x 4
+
+            # nn.Sigmoid()
+        )
+
+        self.classifier1 = nn.Conv2d(ndf * 4, ndf * 4, 4, 1, 0, bias=False)
+        self.classifier2 = nn.Linear(ndf * 4, 10)
+
+    def forward(self, input):
+        # return self.main(input)
+        out = self.main(input)
+        out = self.classifier1(out)
+        out = F.avg_pool2d(out, 1)
+        out = out.view(out.size(0), -1)
+        out = self.classifier2(out)
+        return out
+
+
+# Device setting
+model = Discriminator(ngpu).to(device)
+
+SAVE_PATH = f'../../weights/DCGAN/test1/'
+model.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'), strict=False)
 
 criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -208,7 +264,7 @@ for epoch in range(num_epochs):
     # plt.close(fig)
 
     if best_loss > loss_test:
-        save_path = f'../../weights/resnet18/{name}/{loss_test}.pth'
+        save_path = f'../../weights/{name}/{epoch+1}_{loss_test}.pth'
         if not os.path.exists(os.path.split(save_path)[0]):
             os.makedirs(os.path.split(save_path)[0])
         torch.save(model.state_dict(), save_path)
