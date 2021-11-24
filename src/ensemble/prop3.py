@@ -57,17 +57,11 @@ test_dataset = torchvision.datasets.CIFAR10(root='../../data/',
 
 
 # Dataset modify
-classes = {'plane':0, 'car':1, 'bird':2, 'cat':3,
-           'deer':4, 'dog':5, 'frog':6, 'horse':7, 'ship':8, 'truck':9}
-labels = torch.tensor(train_dataset.train_labels)
-ratio = [0.5**i for i in range(len(classes))]
-# print(classes)
-# print(labels)
-# print(ratio)
-transformed_dataset, count = getSubDataset(dataset=train_dataset,
-                                     class_index=classes,
-                                     labels=labels,
-                                     lratio=ratio)
+mnist = MNIST(32)
+train_dataset = mnist.getTrainDataset()
+transformed_dataset, count = mnist.getTransformedDataset()
+test_dataset = mnist.getTestDataset()
+
 fig = plt.figure(figsize=(9, 6))
 sns.barplot(
     data=count,

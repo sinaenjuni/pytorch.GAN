@@ -1,12 +1,12 @@
-import torch
+import numpy as np
 from torch.utils.data import Subset, ConcatDataset
 
-def getSubDataset(dataset, class_index:dict, labels:torch.tensor, lratio:list):
+def getSubDataset(dataset, class_index:dict, labels, lratio:list):
     transformed_dataset = []
     count_dataset = {'class':[], 'original': [], 'transformed': []}
 
     for i, (name, idx) in enumerate(class_index.items()):
-        target_label_indeces = torch.where(labels == idx)[0].numpy()
+        target_label_indeces = np.where(labels == idx)[0]
         # print(i, target_label_indeces)
         target_subset = Subset(dataset, target_label_indeces)
         len_dataset = len(target_subset)

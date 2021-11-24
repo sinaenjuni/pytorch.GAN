@@ -5,16 +5,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import save_image
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 import sys
 sys.path.append('..')
 from utiles.tensorboard import getTensorboard
-from utiles.data import getSubDataset
 from models.resnet import ResNet18
+from utiles.dataset import CIFAR10, MNIST
 
-name = 'DCGAN/test1_im'
+name = 'DCGAN/mnist_test1'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -25,16 +26,15 @@ tensorboard_path = f'../../tb_logs/{name}'
 tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
-nc=3
+nc=1
 nz=100
 ngf=32
 ndf=32
 
-latent_size = 64
-hidden_size = 256
-image_size = 64
-num_epochs = 200
+image_size = 32
 batch_size = 64
+
+num_epochs = 200
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999
@@ -52,55 +52,15 @@ def denorm(x):
     out = (x + 1) / 2
     return out.clamp(0, 1)
 
-# Image processing
-transform = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(mean=(0.5, 0.5, 0.5),   # 3 for RGB channels
-                                     std=(0.5, 0.5, 0.5))])
-#
-# transform = transforms.Compose([
-#     transforms.Resize(image_size),
-#     transforms.ToTensor(),
-#     transforms.Normalize(mean=[0.5],  # 1 for greyscale channels
-#                          std=[0.5])])
-
-# # MNIST dataset
-# mnist = torchvision.datasets.MNIST(root='../data/',
-#                                    train=True,
-#                                    transform=transform,
-#                                    download=True)
-#
-# # Data loader
-# data_loader = torch.utils.data.DataLoader(dataset=mnist,
-#                                           batch_size=batch_size,
-#                                           shuffle=True)
-
-
-# Dataset define
-train_dataset = torchvision.datasets.CIFAR10(root='../../data/',
-                                   train=True,
-                                   transform=transform,
-                                   download=True)
-
-test_dataset = torchvision.datasets.CIFAR10(root='../../data/',
-                                   train=False,
-                                   transform=transform,
-                                   download=True)
-
-
-
 # Dataset modify
-classes = {'plane':0, 'car':1, 'bird':2, 'cat':3,
-           'deer':4, 'dog':5, 'frog':6, 'horse':7, 'ship':8, 'truck':9}
-labels = torch.tensor(train_dataset.train_labels)
-ratio = [0.5**i for i in range(len(classes))]
-# print(classes)
-# print(labels)
-# print(ratio)
-transformed_dataset, count = getSubDataset(dataset=train_dataset,
-                                     class_index=classes,
-                                     labels=labels,
-                                     lratio=ratio)
+mnist = MNIST(32)
+train_dataset = mnist.getTrainDataset()
+transformed_dataset, count = mnist.getTransformedDataset()
+test_dataset = mnist.getTestDataset()
+
+print(train_dataset)
+print(count)
+
 fig = plt.figure(figsize=(9, 6))
 sns.barplot(
     data=count,
@@ -110,9 +70,8 @@ sns.barplot(
 plt.tight_layout()
 tb.add_figure(tag='original_data_dist', figure=fig)
 
-
 # Data loader
-data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
+data_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 
@@ -207,9 +166,9 @@ G = Generator(ngpu).to(device)
 # D.apply(weights_init)
 # G.apply(weights_init)
 
-SAVE_PATH = f'../../weights/DCGAN/test1/'
-G.load_state_dict(torch.load(SAVE_PATH + 'G_200.pth'))
-D.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'))
+# SAVE_PATH = f'../../weights/DCGAN/test1/'
+# G.load_state_dict(torch.load(SAVE_PATH + 'G_200.pth'))
+# D.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'))
 
 # Binary cross entropy loss and optimizer
 # criterion = nn.BCELoss()
@@ -322,8 +281,6 @@ for epoch in range(num_epochs):
     # Save sampled images
     # fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
     # save_image(denorm(fake_images), os.path.join(sample_dir, 'fake_images-{}.png'.format(epoch + 1)))
-
-
 
 
     # Save the model checkpoints
