@@ -15,7 +15,7 @@ from utiles.tensorboard import getTensorboard
 from models.resnet import ResNet18
 from utiles.dataset import CIFAR10, MNIST
 
-name = 'DCGAN/mnist_test1'
+name = 'DCGAN/cifar10_test1_50img'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -26,7 +26,7 @@ tensorboard_path = f'../../tb_logs/{name}'
 tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
-nc=1
+nc=3
 nz=100
 ngf=32
 ndf=32
@@ -34,7 +34,7 @@ ndf=32
 image_size = 32
 batch_size = 64
 
-num_epochs = 200
+num_epochs = 200 * 10
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999
@@ -53,10 +53,11 @@ def denorm(x):
     return out.clamp(0, 1)
 
 # Dataset modify
-mnist = MNIST(32)
-train_dataset = mnist.getTrainDataset()
-transformed_dataset, count = mnist.getTransformedDataset()
-test_dataset = mnist.getTestDataset()
+# dataset = MNIST(32)
+dataset = CIFAR10()
+train_dataset = dataset.getTrainDataset()
+transformed_dataset, count = dataset.getTransformedDataset([0.01 for i in range(len(dataset.classes))])
+test_dataset = dataset.getTestDataset()
 
 print(train_dataset)
 print(count)
@@ -71,7 +72,7 @@ plt.tight_layout()
 tb.add_figure(tag='original_data_dist', figure=fig)
 
 # Data loader
-data_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 

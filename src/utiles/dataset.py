@@ -16,34 +16,42 @@ class CIFAR10:
                         'ship': 8,
                         'truck': 9}
         # Image processing
-        transform = transforms.Compose([
+        self.transform = transforms.Compose([
                         transforms.ToTensor(),
                         transforms.Normalize(mean=(0.5, 0.5, 0.5),   # 3 for RGB channels
                                              std=(0.5, 0.5, 0.5))])
+
         # Dataset define
         self.train_dataset = torchvision.datasets.CIFAR10(root='../../data/',
                                            train=True,
-                                           transform=transform,
                                            download=True)
         self.test_dataset = torchvision.datasets.CIFAR10(root='../../data/',
                                            train=False,
-                                           transform=transform,
                                            download=True)
-        labels = np.array(list(self.train_dataset.train_labels))
-        ratio = [0.5 ** i for i in range(len(self.classes))]
+
+        self.labels = np.array(list(self.train_dataset.train_labels))
         print(self.classes)
-        print(labels)
-        print(ratio)
-        self.transformed_dataset, self.count = getSubDataset(dataset=self.train_dataset,
-                                                   class_index=self.classes,
-                                                   labels=labels,
-                                                   lratio=ratio)
-    def getTrainDataset(self):
+        print(self.labels)
+
+    def getTrainDataset(self, transforms=None):
+        if transforms is not None:
+            self.train_dataset.transform=transforms
+        else:
+            self.train_dataset.transform=self.transform
         return self.train_dataset
-    def getTransformedDataset(self):
-        return self.transformed_dataset, self.count
-    def getTestDataset(self):
+
+    def getTestDataset(self, transforms=None):
+        if transforms is not None:
+            self.test_dataset.transform=transforms
+        else:
+            self.test_dataset.transform=self.transform
         return self.test_dataset
+
+    def getTransformedDataset(self, ratio):
+        return getSubDataset(dataset=self.train_dataset,
+                                                   class_index=self.classes,
+                                                   labels=self.labels,
+                                                   lratio=ratio)
 
 
 class MNIST:
@@ -66,41 +74,52 @@ class MNIST:
         # MNIST dataset
         self.train_dataset = torchvision.datasets.MNIST(root='../../data/',
                                                    train=True,
-                                                   transform=self.transform,
                                                    download=True)
         # MNIST dataset
         self.test_dataset = torchvision.datasets.MNIST(root='../../data/',
                                                    train=False,
-                                                   transform=self.transform,
                                                    download=True)
-
-        labels = np.array(list(self.train_dataset.train_labels))
-        ratio = [0.5 ** i for i in range(len(self.classes))]
+        self.labels = np.array(list(self.train_dataset.train_labels))
         print(self.classes)
-        print(labels)
-        print(ratio)
-        self.transformed_dataset, self.count = getSubDataset(dataset=self.train_dataset,
-                                                   class_index=self.classes,
-                                                   labels=labels,
-                                                   lratio=ratio)
-    def getTrainDataset(self):
+        print(self.labels)
+
+    def getTrainDataset(self, transforms=None):
+        if transforms is not None:
+            self.train_dataset.transform=transforms
+        else:
+            self.train_dataset.transform=self.transform
         return self.train_dataset
-    def getTransformedDataset(self):
-        return self.transformed_dataset, self.count
-    def getTestDataset(self):
+
+    def getTestDataset(self, transforms=None):
+        if transforms is not None:
+            self.test_dataset.transform=transforms
+        else:
+            self.test_dataset.transform=self.transform
         return self.test_dataset
+
+    def getTransformedDataset(self, ratio):
+        return getSubDataset(dataset=self.train_dataset,
+                                                   class_index=self.classes,
+                                                   labels=self.labels,
+                                                   lratio=ratio)
 
 if __name__ == '__main__':
     mnist = MNIST()
     train_dataset = mnist.getTrainDataset()
-    train_dataset, count = mnist.getTransformedDataset()
+    train_dataset, count = mnist.getTransformedDataset(
+        [0.5 ** i for i in range(len(mnist.classes))])
     test_dataset = mnist.getTestDataset()
 
     print(count)
+    print(train_dataset)
+    print(test_dataset)
 
     cifar10 = CIFAR10()
     train_dataset = cifar10.getTrainDataset()
-    transforms_dataset, count = cifar10.getTransformedDataset()
+    transforms_dataset, count = cifar10.getTransformedDataset(
+        [0.5 ** i for i in range(len(cifar10.classes))])
     test_dataset = cifar10.getTestDataset()
 
     print(count)
+    print(train_dataset)
+    print(test_dataset)
