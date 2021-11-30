@@ -18,7 +18,7 @@ from utiles.data import getSubDataset
 from models.resnet import ResNet18
 from utiles.dataset import CIFAR10, MNIST
 
-name = 'prop4/weighted_test1_50img'
+name = 'prop4/weighted_cDCGAN_test2'
 tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
@@ -44,6 +44,10 @@ dataset = CIFAR10()
 train_dataset = dataset.getTrainDataset()
 transformed_dataset, count = dataset.getTransformedDataset([0.5 ** i for i in range(len(dataset.classes))])
 test_dataset = dataset.getTestDataset()
+
+ce_weights = [1-(i/sum(count["transformed"])) for i in count["transformed"]]
+ce_weights = torch.FloatTensor(ce_weights).to(device)
+print(ce_weights)
 
 fig = plt.figure(figsize=(9, 6))
 sns.barplot(
@@ -98,15 +102,18 @@ class Discriminator(nn.Module):
             # state size. (ndf) x 32 x 32
             nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ndf),
-            nn.LeakyReLU(0.2, inplace=True),
+            # nn.LeakyReLU(0.2, inplace=True),
+            nn.ReLU(inplace=True),
             # state size. (ndf*2) x 16 x 16
             nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ndf * 2),
-            nn.LeakyReLU(0.2, inplace=True),
+            # nn.LeakyReLU(0.2, inplace=True),
+            nn.ReLU(inplace=True),
             # state size. (ndf*4) x 8 x 8
             nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
             nn.BatchNorm2d(ndf * 4),
-            nn.LeakyReLU(0.2, inplace=True),
+            # nn.LeakyReLU(0.2, inplace=True),
+            nn.ReLU(inplace=True),
             # state size. (ndf*8) x 4 x 4
 
             # nn.Sigmoid()
@@ -128,10 +135,10 @@ class Discriminator(nn.Module):
 # Device setting
 model = Discriminator(ngpu).to(device)
 
-SAVE_PATH = f'../../weights/DCGAN/cifar10_test1_50img/'
-model.load_state_dict(torch.load(SAVE_PATH + 'D_800.pth'), strict=False)
+# SAVE_PATH = f'../../weights/cDCGAN/cifar10_lt_test1/'
+# model.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'), strict=False)
 
-criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
+criterion = torch.nn.CrossEntropyLoss(weight=ce_weights).to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,
                       momentum=0.9, weight_decay=5e-4)

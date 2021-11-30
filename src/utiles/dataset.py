@@ -1,7 +1,11 @@
+from torch.utils.data import Dataset, DataLoader
 import torchvision
 from torchvision import transforms
 from .data import getSubDataset
 import numpy as np
+import os
+from PIL import Image
+
 
 class CIFAR10:
     def __init__(self):
@@ -103,23 +107,82 @@ class MNIST:
                                                    labels=self.labels,
                                                    lratio=ratio)
 
-if __name__ == '__main__':
-    mnist = MNIST()
-    train_dataset = mnist.getTrainDataset()
-    train_dataset, count = mnist.getTransformedDataset(
-        [0.5 ** i for i in range(len(mnist.classes))])
-    test_dataset = mnist.getTestDataset()
+# if __name__ == '__main__':
+#     mnist = MNIST()
+#     train_dataset = mnist.getTrainDataset()
+#     train_dataset, count = mnist.getTransformedDataset(
+#         [0.5 ** i for i in range(len(mnist.classes))])
+#     test_dataset = mnist.getTestDataset()
+#
+#     print(count)
+#     print(train_dataset)
+#     print(test_dataset)
+#
+#     cifar10 = CIFAR10()
+#     train_dataset = cifar10.getTrainDataset()
+#     transforms_dataset, count = cifar10.getTransformedDataset(
+#         [0.5 ** i for i in range(len(cifar10.classes))])
+#     test_dataset = cifar10.getTestDataset()
+#
+#     print(count)
+#     print(train_dataset)
+#     print(test_dataset)
 
-    print(count)
-    print(train_dataset)
-    print(test_dataset)
 
-    cifar10 = CIFAR10()
-    train_dataset = cifar10.getTrainDataset()
-    transforms_dataset, count = cifar10.getTransformedDataset(
-        [0.5 ** i for i in range(len(cifar10.classes))])
-    test_dataset = cifar10.getTestDataset()
+class ImageNetLT(Dataset):
+    def __init__(self, type='train', transform=None):
+        BASEPATH = '../../data/ImageNet_LT'
+        self.img_path = os.path.join(BASEPATH, 'ImageNet_LT_open')
+        print(os.listdir(self.img_path))
+        if type == 'train': data_path = os.path.join(BASEPATH, 'ImageNet_LT_train.txt')
+        elif type == 'val': data_path = os.path.join(BASEPATH, 'ImageNet_LT_val.txt')
+        elif type == 'test': data_path = os.path.join(BASEPATH, 'ImageNet_LT_test.txt')
+        else: assert False, 'type should be selected in train, val, test'
 
-    print(count)
-    print(train_dataset)
-    print(test_dataset)
+
+        with open(data_path, 'r') as f:
+            data_file = f.readlines()
+
+        self.data_file = list(map(lambda x: ['ILSVRC2010_val_'+
+                                        x.split(' ')[0]
+                                        .split('_')[1]
+                                        .split('.')[0]
+                                        .zfill(8)+'.JPEG',
+                                        int(x.split(' ')[1])], data_file))
+            # data_file = list(map(lambda x: [x[0].split('_')[1], x[1]], data_file))
+
+        self.class_list = [i[1] for i in self.data_file]
+        self.classes = list(set(self.class_list))
+        self.class_count = {classes:self.class_list.count(classes) for classes in self.classes}
+
+        # print(self.img_path)
+        # print(self.data_file[100])
+        # print(self.class_list)
+        # print(self.classes)
+        # print(self.class_count)
+
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data_file)
+
+    def __getitem__(self, index):
+        img, label = self.data_file[index]
+        img = os.path.join(self.img_path, img)
+        print(img)
+        img = Image.open(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        return img, label
+
+
+
+
+
+# if __name__ == '__main__':
+#     imageNet_LT = ImageNetLT()
+#
+#     img, label = imageNet_LT[1]
+#     print(img, label)

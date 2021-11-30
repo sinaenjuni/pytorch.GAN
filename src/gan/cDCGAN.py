@@ -13,9 +13,10 @@ import sys
 sys.path.append('..')
 from utiles.tensorboard import getTensorboard
 from models.resnet import ResNet18
+from models.cDCGAN import Discriminator, Generator
 from utiles.dataset import CIFAR10, MNIST
 
-name = 'DCGAN/cifar10_test1_50img'
+name = 'cDCGAN/cifar10_lt_test1'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,7 +35,7 @@ ndf=32
 image_size = 32
 batch_size = 64
 
-num_epochs = 200 * 10
+num_epochs = 200 * 4
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999
@@ -56,11 +57,18 @@ def denorm(x):
 # dataset = MNIST(32)
 dataset = CIFAR10()
 train_dataset = dataset.getTrainDataset()
-transformed_dataset, count = dataset.getTransformedDataset([0.01 for i in range(len(dataset.classes))])
+transformed_dataset, count = dataset.getTransformedDataset([0.5**i for i in range(len(dataset.classes))])
 test_dataset = dataset.getTestDataset()
 
 print(train_dataset)
-print(count)
+print("count", count["transformed"])
+
+ce_weights = [1-(i/sum(count["transformed"])) for i in count["transformed"]]
+ce_weights = torch.FloatTensor(ce_weights).to(device)
+print(ce_weights)
+
+
+assert False
 
 fig = plt.figure(figsize=(9, 6))
 sns.barplot(
@@ -76,76 +84,10 @@ data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 
-def normal_init(m, mean, std):
-    if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
-        m.weight.data.normal_(mean, std)
-        m.bias.data.zero_()
-
-
-# G(z)
-class Generator(nn.Module):
-    # initializers
-    def __init__(self, d=128):
-        super(Generator, self).__init__()
-        self.deconv1_1 = nn.ConvTranspose2d(100, d*2, 4, 1, 0)
-        self.deconv1_1_bn = nn.BatchNorm2d(d*2)
-        self.deconv1_2 = nn.ConvTranspose2d(10, d*2, 4, 1, 0)
-        self.deconv1_2_bn = nn.BatchNorm2d(d*2)
-        self.deconv2 = nn.ConvTranspose2d(d*4, d*2, 4, 2, 1)
-        self.deconv2_bn = nn.BatchNorm2d(d*2)
-        self.deconv3 = nn.ConvTranspose2d(d*2, d, 4, 2, 1)
-        self.deconv3_bn = nn.BatchNorm2d(d)
-        self.deconv4 = nn.ConvTranspose2d(d, 1, 4, 2, 1)
-
-    # weight_init
-    def weight_init(self, mean, std):
-        for m in self._modules:
-            normal_init(self._modules[m], mean, std)
-
-    # forward method
-    def forward(self, input, label):
-        x = F.relu(self.deconv1_1_bn(self.deconv1_1(input)))
-        y = F.relu(self.deconv1_2_bn(self.deconv1_2(label)))
-        x = torch.cat([x, y], 1)
-        x = F.relu(self.deconv2_bn(self.deconv2(x)))
-        x = F.relu(self.deconv3_bn(self.deconv3(x)))
-        x = F.tanh(self.deconv4(x))
-        # x = F.relu(self.deconv4_bn(self.deconv4(x)))
-        # x = F.tanh(self.deconv5(x))
-
-        return x
-
-class Discriminator(nn.Module):
-    # initializers
-    def __init__(self, d=128):
-        super(Discriminator, self).__init__()
-        self.conv1_1 = nn.Conv2d(1, d/2, 4, 2, 1)
-        self.conv1_2 = nn.Conv2d(10, d/2, 4, 2, 1)
-        self.conv2 = nn.Conv2d(d, d*2, 4, 2, 1)
-        self.conv2_bn = nn.BatchNorm2d(d*2)
-        self.conv3 = nn.Conv2d(d*2, d*4, 4, 2, 1)
-        self.conv3_bn = nn.BatchNorm2d(d*4)
-        self.conv4 = nn.Conv2d(d * 4, 1, 4, 1, 0)
-
-    # weight_init
-    def weight_init(self, mean, std):
-        for m in self._modules:
-            normal_init(self._modules[m], mean, std)
-
-    # forward method
-    def forward(self, input, label):
-        x = F.leaky_relu(self.conv1_1(input), 0.2)
-        y = F.leaky_relu(self.conv1_2(label), 0.2)
-        x = torch.cat([x, y], 1)
-        x = F.leaky_relu(self.conv2_bn(self.conv2(x)), 0.2)
-        x = F.leaky_relu(self.conv3_bn(self.conv3(x)), 0.2)
-        x = F.sigmoid(self.conv4(x))
-
-        return x
 
 # Device setting
-D = Discriminator(ngpu).to(device)
-G = Generator(ngpu).to(device)
+D = Discriminator(nc, ndf, ngpu).to(device)
+G = Generator(nz, nc, ngf, ngpu).to(device)
 
 # temp_in = torch.randn((10,3,32,32)).to(device)
 # for i in D.modules():
@@ -185,10 +127,11 @@ def reset_grad():
 # Start training
 total_step = len(data_loader)
 for epoch in range(num_epochs):
-    for i, (images, _) in enumerate(data_loader):
+    for i, (images, labels) in enumerate(data_loader):
         # images = images.reshape(batch_size, -1).to(device)
         batch = images.size(0)
         images = images.to(device)
+        labels = labels.to(device)
 
         # Create the labels which are later used as input for the BCE loss
         real_labels = torch.ones((batch,) ).to(device)
@@ -203,11 +146,17 @@ for epoch in range(num_epochs):
 
         # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
         # Second term of the loss is always zero since real_labels == 1
-        outputs = D(images)
-        outputs = outputs.view(-1)
+        out_adv, out_cls = D(images)
+        out_adv = out_adv.view(-1)
+        out_cls = out_cls.view(-1, 10)
         # d_loss_real = criterion(outputs, real_labels)
-        d_loss_real = F.relu(1.-outputs).mean()
-        real_score = outputs
+
+        d_loss_adv = F.relu(1.-out_adv).mean()
+        d_loss_cls = F.cross_entropy(out_cls, labels)
+        d_loss_real = d_loss_adv + d_loss_cls
+
+        real_score = out_adv
+        real_cls_loss = d_loss_cls
 
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
@@ -215,14 +164,21 @@ for epoch in range(num_epochs):
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
         fake_images = G(z)
 
-        outputs = D(fake_images.detach())
-        outputs = outputs.view(-1)
+        out_adv, out_cls = D(fake_images.detach())
+        out_adv = out_adv.view(-1)
+        out_cls = out_cls.view(-1, 10)
+
         # d_loss_fake = criterion(outputs, fake_labels)
-        d_loss_fake = F.relu(1.+outputs).mean()
-        fake_score = outputs
+        d_loss_adv = F.relu(1.+out_adv).mean()
+        d_loss_cls = F.cross_entropy(out_cls, labels, weight=ce_weights)
+        d_loss_fake = d_loss_adv + d_loss_cls
+
+        fake_score = out_adv
+        fake_cls_loss = d_loss_cls
+
+        d_loss = d_loss_real + d_loss_fake
 
         # Backprop and optimize
-        d_loss = d_loss_real + d_loss_fake
         reset_grad()
         d_loss.backward()
         d_optimizer.step()
@@ -234,14 +190,20 @@ for epoch in range(num_epochs):
         # Compute loss with fake images
         # z = torch.randn(batch_size, latent_size).to(device)
         fake_images = G(z)
-        outputs = D(fake_images)
-        outputs = outputs.view(-1)
-        gened_score = outputs
+        out_adv, out_cls = D(fake_images)
+        out_adv = out_adv.view(-1)
+        out_cls = out_cls.view(-1, 10)
+
+        g_loss_adv = -out_adv.mean()
+        g_loss_cls = F.cross_entropy(out_cls, labels, weight=ce_weights)
+
+        gened_score = out_adv
+
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
         # g_loss = criterion(outputs, real_labels)
-        g_loss = -outputs.mean()
+        g_loss = g_loss_adv + g_loss_cls
 
         # Backprop and optimize
         reset_grad()

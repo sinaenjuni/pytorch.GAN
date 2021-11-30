@@ -23,16 +23,22 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(ndf * 4, 1, 4, 1, 0, bias=False)
+            # nn.Conv2d(ndf * 4, 1, 4, 1, 0, bias=False)
             # nn.Sigmoid()
         )
+        self.adv = nn.Conv2d(ndf * 4, 1, 4, 1, 0, bias=False)
+        self.cls = nn.Conv2d(ndf * 4, 10, 4, 1, 0, bias=False)
 
     def forward(self, input):
-        return self.main(input)
+        y = self.main(input)
+        adv = self.adv(y)
+        cls = self.cls(y)
+        return adv, cls
+        # return self.main(input)
 
 # Generator
 class Generator(nn.Module):
-    def __init__(self, nz, ngf, ngpu):
+    def __init__(self, nz, nc, ngf, ngpu):
         super(Generator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
@@ -64,6 +70,8 @@ class Generator(nn.Module):
 
 if __name__ == '__main__':
     import torch
+    import torch.nn.functional as F
+
     nc = 3
     ndf = 32
 
@@ -77,15 +85,20 @@ if __name__ == '__main__':
     img_size = 32
 
     img = torch.randn((batch_size, nc, img_size, img_size))
+    labels = torch.randint(10, (batch_size,))
     z = torch.randn((batch_size, nz, 1, 1))
 
     print(img.size())
     print(z.size())
-    d_out = D(img)
+    d_out_adv, d_out_cls = D(img)
     g_out = G(z)
 
-    print(d_out.size())
+    print(d_out_adv.size(), d_out_cls.size())
     print(g_out.size())
 
-    d_out = d_out.view(-1)
-    print(d_out.size())
+    d_out_adv = d_out_adv.view(-1)
+    d_out_cls = d_out_cls.view(-1, 10)
+    print(d_out_adv.size(), d_out_cls.size())
+
+    cls_loss = F.cross_entropy(d_out_cls, labels)
+    print(cls_loss)
