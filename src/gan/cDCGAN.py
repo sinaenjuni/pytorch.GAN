@@ -27,10 +27,12 @@ tensorboard_path = f'../../tb_logs/{name}'
 tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
-nc=3
-nz=100
-ngf=32
-ndf=32
+nc = 3
+ndf = 32
+
+nz = 100
+ngf = 32
+ncls = 10
 
 image_size = 32
 batch_size = 64
@@ -43,6 +45,10 @@ ngpu = 1
 
 
 fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
+
+onehot = torch.zeros(ncls, ncls)
+onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                         .view(ncls, 1), 1).view(ncls, ncls, 1, 1)
 
 # sample_dir = '../samples'
 # Create a directory if not exists
@@ -68,8 +74,6 @@ ce_weights = torch.FloatTensor(ce_weights).to(device)
 print(ce_weights)
 
 
-assert False
-
 fig = plt.figure(figsize=(9, 6))
 sns.barplot(
     data=count,
@@ -85,9 +89,20 @@ data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
                                           shuffle=True)
 
 
+
+# custom weights initialization called on netG and netD
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
+
+
 # Device setting
-D = Discriminator(nc, ndf, ngpu).to(device)
-G = Generator(nz, nc, ngf, ngpu).to(device)
+D = Discriminator(nc=nc, ndf=ndf, ngpu=1).to(device)
+G = Generator(nz=nz, nc=nc, ngf=ngf, ncls=ncls, ngpu=1).to(device)
 
 # temp_in = torch.randn((10,3,32,32)).to(device)
 # for i in D.modules():
@@ -103,8 +118,8 @@ G = Generator(nz, nc, ngf, ngpu).to(device)
 #         print(y.size())
 #         temp_in = y
 
-# D.apply(weights_init)
-# G.apply(weights_init)
+D.apply(weights_init)
+G.apply(weights_init)
 
 # SAVE_PATH = f'../../weights/DCGAN/test1/'
 # G.load_state_dict(torch.load(SAVE_PATH + 'G_200.pth'))
@@ -147,6 +162,7 @@ for epoch in range(num_epochs):
         # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
         # Second term of the loss is always zero since real_labels == 1
         out_adv, out_cls = D(images)
+
         out_adv = out_adv.view(-1)
         out_cls = out_cls.view(-1, 10)
         # d_loss_real = criterion(outputs, real_labels)
@@ -161,8 +177,10 @@ for epoch in range(num_epochs):
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
         # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
+        c_ = (torch.rand(batch, 1) * ncls).long().squeeze().to(device) # 균등한 확률로 0~1사이의 랜덤
+        cls = onehot[c_].to(device)
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
-        fake_images = G(z)
+        fake_images = G(z, cls)
 
         out_adv, out_cls = D(fake_images.detach())
         out_adv = out_adv.view(-1)
@@ -170,7 +188,7 @@ for epoch in range(num_epochs):
 
         # d_loss_fake = criterion(outputs, fake_labels)
         d_loss_adv = F.relu(1.+out_adv).mean()
-        d_loss_cls = F.cross_entropy(out_cls, labels, weight=ce_weights)
+        d_loss_cls = F.cross_entropy(out_cls, labels)
         d_loss_fake = d_loss_adv + d_loss_cls
 
         fake_score = out_adv
@@ -187,9 +205,15 @@ for epoch in range(num_epochs):
         #                        Train the generator                         #
         # ================================================================== #
 
+
+
         # Compute loss with fake images
         # z = torch.randn(batch_size, latent_size).to(device)
-        fake_images = G(z)
+        z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
+        c_ = (torch.rand(batch, 1) * ncls).long().squeeze().to(device)
+        cls = onehot[c_].to(device)
+        fake_images = G(z, cls)
+
         out_adv, out_cls = D(fake_images)
         out_adv = out_adv.view(-1)
         out_cls = out_cls.view(-1, 10)

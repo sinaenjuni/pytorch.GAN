@@ -43,37 +43,64 @@ import torch.nn.functional as F
 
 
 
-# fixed noise & label
-temp_z_ = torch.randn(10, 100)
-fixed_z_ = temp_z_
-fixed_y_ = torch.zeros(10, 1)
-for i in range(9):
-    fixed_z_ = torch.cat([fixed_z_, temp_z_], 0)
-    temp = torch.ones(10, 1) + i
-    fixed_y_ = torch.cat([fixed_y_, temp], 0)
+# # fixed noise & label
+# temp_z_ = torch.randn(10, 100)
+# fixed_z_ = temp_z_
+# fixed_y_ = torch.zeros(10, 1)
+# for i in range(9):
+#     fixed_z_ = torch.cat([fixed_z_, temp_z_], 0)
+#     temp = torch.ones(10, 1) + i
+#     fixed_y_ = torch.cat([fixed_y_, temp], 0)
+#
+# print(fixed_z_.size())
+# print(fixed_y_.size())
+# print(fixed_y_[:11])
+#
+# fixed_z_ = fixed_z_.view(-1, 100, 1, 1)
+# fixed_y_label_ = torch.zeros(100, 10)
+# fixed_y_label_.scatter_(1, fixed_y_.type(torch.LongTensor), 1)
+# fixed_y_label_ = fixed_y_label_.view(-1, 10, 1, 1)
+#
+#
+# img_size = 32
+# # label preprocess
+# onehot = torch.zeros(10, 10)
+# onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).view(10,1), 1).view(10, 10, 1, 1)
+# print(onehot[[1,2]].size())
+# fill = torch.zeros([10, 10, img_size, img_size])
+# for i in range(10):
+#     fill[i, i, :, :] = 1
+#
+# print(fill[1].mean((1,2)))
+#
+#
+# mini_batch = 32
+# y_ = (torch.rand(mini_batch, 1) * 10).type(torch.LongTensor).squeeze()
+# print(y_)
 
-print(fixed_z_.size())
-print(fixed_y_.size())
-print(fixed_y_[:11])
-
-fixed_z_ = fixed_z_.view(-1, 100, 1, 1)
-fixed_y_label_ = torch.zeros(100, 10)
-fixed_y_label_.scatter_(1, fixed_y_.type(torch.LongTensor), 1)
-fixed_y_label_ = fixed_y_label_.view(-1, 10, 1, 1)
 
 
-img_size = 32
+
+# import numpy as np
+#
+# no_data = 10
+# no_class = 5
+# no_per_class = np.array([1,2,3,4,5])
+#
+# e = (1.0-no_data)/(1.0-no_data ** no_per_class)
+# print(e)
+
+
+import torch
+
+r = (torch.rand((10,))*10).long()
+print(r)
+
+print(torch.nn.ConvTranspose2d(10,4,4,2,1).__class__.__name__)
+
+label_dim=10
 # label preprocess
-onehot = torch.zeros(10, 10)
-onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).view(10,1), 1).view(10, 10, 1, 1)
-print(onehot[[1,2]].size())
-fill = torch.zeros([10, 10, img_size, img_size])
-for i in range(10):
-    fill[i, i, :, :] = 1
+onehot = torch.zeros(label_dim, label_dim)
+onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).view(label_dim, 1), 1).view(label_dim, label_dim, 1, 1)
 
-print(fill[1].mean((1,2)))
-
-
-mini_batch = 32
-y_ = (torch.rand(mini_batch, 1) * 10).type(torch.LongTensor).squeeze()
-print(y_)
+print(onehot[0])
