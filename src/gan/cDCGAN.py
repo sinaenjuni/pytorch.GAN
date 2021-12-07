@@ -16,7 +16,7 @@ from models.resnet import ResNet18
 from models.cDCGAN import Discriminator, Generator
 from utiles.dataset import CIFAR10, MNIST
 
-name = 'cDCGAN/cifar10_lt_test1'
+name = 'cDCGAN/mnist_lt_test1'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -27,24 +27,40 @@ tensorboard_path = f'../../tb_logs/{name}'
 tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
-nc = 3
-ndf = 32
+nc = 1
+ndf = 128
 
 nz = 100
-ngf = 32
+ngf = 128
 ncls = 10
 
 image_size = 32
-batch_size = 64
+batch_size = 128
 
-num_epochs = 200 * 4
+num_epochs = 200
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999
 ngpu = 1
 
 
-fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
+# fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
+
+# fixed noise & label
+temp_z_ = torch.randn(10, 100)
+fixed_z_ = temp_z_
+fixed_y_ = torch.zeros(10, 1)
+for i in range(9):
+    fixed_z_ = torch.cat([fixed_z_, temp_z_], 0)
+    temp = torch.ones(10, 1) + i
+    fixed_y_ = torch.cat([fixed_y_, temp], 0)
+
+fixed_z_ = fixed_z_.view(-1, 100, 1, 1).to(device)
+
+fixed_y_label_ = torch.zeros(100, 10)
+fixed_y_label_.scatter_(1, fixed_y_.type(torch.LongTensor), 1)
+fixed_y_label_ = fixed_y_label_.view(-1, 10, 1, 1).to(device)
+
 
 onehot = torch.zeros(ncls, ncls)
 onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -60,8 +76,8 @@ def denorm(x):
     return out.clamp(0, 1)
 
 # Dataset modify
-# dataset = MNIST(32)
-dataset = CIFAR10()
+dataset = MNIST(32)
+# dataset = CIFAR10()
 train_dataset = dataset.getTrainDataset()
 transformed_dataset, count = dataset.getTransformedDataset([0.5**i for i in range(len(dataset.classes))])
 test_dataset = dataset.getTestDataset()
@@ -69,9 +85,9 @@ test_dataset = dataset.getTestDataset()
 print(train_dataset)
 print("count", count["transformed"])
 
-ce_weights = [1-(i/sum(count["transformed"])) for i in count["transformed"]]
-ce_weights = torch.FloatTensor(ce_weights).to(device)
-print(ce_weights)
+# ce_weights = [1-(i/sum(count["transformed"])) for i in count["transformed"]]
+# ce_weights = torch.FloatTensor(ce_weights).to(device)
+# print(ce_weights)
 
 
 fig = plt.figure(figsize=(9, 6))
@@ -84,7 +100,7 @@ plt.tight_layout()
 tb.add_figure(tag='original_data_dist', figure=fig)
 
 # Data loader
-data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
+data_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 
@@ -219,7 +235,7 @@ for epoch in range(num_epochs):
         out_cls = out_cls.view(-1, 10)
 
         g_loss_adv = -out_adv.mean()
-        g_loss_cls = F.cross_entropy(out_cls, labels, weight=ce_weights)
+        g_loss_cls = F.cross_entropy(out_cls, labels)
 
         gened_score = out_adv
 
@@ -259,7 +275,7 @@ for epoch in range(num_epochs):
     # tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
     # tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
 
-    result_images = denorm(G(fixed_noise))
+    result_images = denorm(G(fixed_z_, fixed_y_label_))
     tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=result_images)
 
     # Save sampled images
@@ -267,9 +283,9 @@ for epoch in range(num_epochs):
     # save_image(denorm(fake_images), os.path.join(sample_dir, 'fake_images-{}.png'.format(epoch + 1)))
 
 
-    # Save the model checkpoints
-    SAVE_PATH = f'../../weights/{name}/'
-    if not os.path.exists(SAVE_PATH):
-        os.makedirs(SAVE_PATH)
-    torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
-    torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')
+    # # Save the model checkpoints
+    # SAVE_PATH = f'../../weights/{name}/'
+    # if not os.path.exists(SAVE_PATH):
+    #     os.makedirs(SAVE_PATH)
+    # torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
+    # torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')

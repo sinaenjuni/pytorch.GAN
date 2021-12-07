@@ -91,16 +91,44 @@ import torch.nn.functional as F
 # print(e)
 
 
+# import torch
+#
+# r = (torch.rand((10,))*10).long()
+# print(r)
+#
+# print(torch.nn.ConvTranspose2d(10,4,4,2,1).__class__.__name__)
+#
+# label_dim=10
+# # label preprocess
+# onehot = torch.zeros(label_dim, label_dim)
+# onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).view(label_dim, 1), 1).view(label_dim, label_dim, 1, 1)
+#
+# print(onehot[0])
+#
+# print(torch.exp(torch.tensor([1.])))
+
+
+
 import torch
+label_dim = 10
+G_input_dim = 100
 
-r = (torch.rand((10,))*10).long()
-print(r)
+temp_noise = torch.randn(label_dim, G_input_dim)
+fixed_noise = temp_noise
+fixed_c = torch.zeros(label_dim, 1)
+for i in range(9):
+    fixed_noise = torch.cat([fixed_noise, temp_noise], 0)
+    temp = torch.ones(label_dim, 1) + i
+    fixed_c = torch.cat([fixed_c, temp], 0)
 
-print(torch.nn.ConvTranspose2d(10,4,4,2,1).__class__.__name__)
+fixed_noise = fixed_noise.view(-1, G_input_dim, 1, 1)
+# for i in range(0,100,10):
+#     print(fixed_noise[i:i+10,:5].squeeze())
+print(fixed_c.size())
 
-label_dim=10
-# label preprocess
-onehot = torch.zeros(label_dim, label_dim)
-onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).view(label_dim, 1), 1).view(label_dim, label_dim, 1, 1)
+fixed_label = torch.zeros(G_input_dim, label_dim)
+fixed_label.scatter_(1, fixed_c.type(torch.LongTensor), 1)
+fixed_label = fixed_label.view(-1, label_dim, 1, 1)
 
-print(onehot[0])
+print(fixed_noise.size())
+print(fixed_label.size())
