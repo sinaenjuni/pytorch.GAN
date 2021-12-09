@@ -68,7 +68,7 @@ class Discriminator(nn.Module):
     def getOutputModule(self, input, ncls):
         adv = nn.Sequential(
             nn.Linear(input, 1),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
         cls = nn.Sequential(
             nn.Linear(input, ncls),
