@@ -108,27 +108,46 @@ import torch.nn.functional as F
 # print(torch.exp(torch.tensor([1.])))
 
 
+#
+# import torch
+# label_dim = 10
+# G_input_dim = 100
+#
+# temp_noise = torch.randn(label_dim, G_input_dim)
+# fixed_noise = temp_noise
+# fixed_c = torch.zeros(label_dim, 1)
+# for i in range(9):
+#     fixed_noise = torch.cat([fixed_noise, temp_noise], 0)
+#     temp = torch.ones(label_dim, 1) + i
+#     fixed_c = torch.cat([fixed_c, temp], 0)
+#
+# fixed_noise = fixed_noise.view(-1, G_input_dim, 1, 1)
+# # for i in range(0,100,10):
+# #     print(fixed_noise[i:i+10,:5].squeeze())
+# print(fixed_c.size())
+#
+# fixed_label = torch.zeros(G_input_dim, label_dim)
+# fixed_label.scatter_(1, fixed_c.type(torch.LongTensor), 1)
+# fixed_label = fixed_label.view(-1, label_dim, 1, 1)
+#
+# print(fixed_noise.size())
+# print(fixed_label.size())
+
 
 import torch
-label_dim = 10
-G_input_dim = 100
+import torch.nn.functional as F
 
-temp_noise = torch.randn(label_dim, G_input_dim)
-fixed_noise = temp_noise
-fixed_c = torch.zeros(label_dim, 1)
-for i in range(9):
-    fixed_noise = torch.cat([fixed_noise, temp_noise], 0)
-    temp = torch.ones(label_dim, 1) + i
-    fixed_c = torch.cat([fixed_c, temp], 0)
 
-fixed_noise = fixed_noise.view(-1, G_input_dim, 1, 1)
-# for i in range(0,100,10):
-#     print(fixed_noise[i:i+10,:5].squeeze())
-print(fixed_c.size())
+tensor = torch.tensor([[2, 2],
+                      [2, 2]]).float()
+print(tensor)
+renormed = torch.renorm(tensor, 1, 0, 2)
+print(renormed)
 
-fixed_label = torch.zeros(G_input_dim, label_dim)
-fixed_label.scatter_(1, fixed_c.type(torch.LongTensor), 1)
-fixed_label = fixed_label.view(-1, label_dim, 1, 1)
+print(tensor[1, :].sum())
+print(renormed[1, :].sum())
+print(tensor[:, 1].sum())
+print(renormed[:, 1].sum())
 
-print(fixed_noise.size())
-print(fixed_label.size())
+factor = 2/6
+print([i * factor**2 for i in tensor[1,:]])
