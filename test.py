@@ -134,20 +134,68 @@ import torch.nn.functional as F
 # print(fixed_label.size())
 
 
-import torch
-import torch.nn.functional as F
+# import torch
+# import torch.nn.functional as F
+#
+#
+# tensor = torch.tensor([[2, 2],
+#                       [2, 2]]).float()
+# print(tensor)
+# renormed = torch.renorm(tensor, 1, 0, 2)
+# print(renormed)
+#
+# print(tensor[1, :].sum())
+# print(renormed[1, :].sum())
+# print(tensor[:, 1].sum())
+# print(renormed[:, 1].sum())
+#
+# factor = 2/6
+# print([i * factor**2 for i in tensor[1,:]])
+
+# import torch
+# import torch.nn.functional as F
+#
+# x = torch.tensor([.8])
+# h = torch.tensor([.2])
+# w_xh = torch.tensor([.2], requires_grad=True)
+# w_hh = torch.tensor([.3], requires_grad=True)
+# b_h = torch.tensor([.9], requires_grad=True)
+# h_t = torch.tanh(w_hh*h + w_xh*x + b_h)
+# print(h_t)
+# h_t.backward()
+# print(w_xh.grad)
+
+# out = torch.tanh(input)
+# print(out)
 
 
-tensor = torch.tensor([[2, 2],
-                      [2, 2]]).float()
-print(tensor)
-renormed = torch.renorm(tensor, 1, 0, 2)
-print(renormed)
+# import torchvision
+# class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
+#     def __init__(self):
+#         root="data"
+#         train=True
+#         transform = None
+#         target_transform = None
+#         download = True
+#         super(IMBALANCECIFAR10, self).__init__(root, train, transform, target_transform, download)
+#         print(len(self.data))
+#
+# cifar10 = IMBALANCECIFAR10()
 
-print(tensor[1, :].sum())
-print(renormed[1, :].sum())
-print(tensor[:, 1].sum())
-print(renormed[:, 1].sum())
+# img_max=50000
+# cls_num=10
+# imb_factor=0.1
+# img_num_per_cls=[]
+# reverse = False
+# for cls_idx in range(cls_num):
+#     if reverse:
+#         num = img_max * (imb_factor ** ((cls_num - 1 - cls_idx) / (cls_num - 1.0)))
+#         img_num_per_cls.append(int(num))
+#     else:
+#         num = img_max * (imb_factor ** (cls_idx / (cls_num - 1.0)))
+#         img_num_per_cls.append(int(num))
+# print(img_num_per_cls)
+#
 
-factor = 2/6
-print([i * factor**2 for i in tensor[1,:]])
+
+
