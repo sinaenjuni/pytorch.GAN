@@ -74,11 +74,11 @@ if __name__ == '__main__':
                                               download=True, transform=transform)
 
 
-
-
-    print(len(train_dataset))
-
-
+    import numpy as np
+    train_labels = train_dataset.train_labels
+    train_labels = np.array(train_labels)
+    for i in np.unique(train_labels):
+        print(i, len(train_labels[train_labels == i]))
 
     # print(len(torchvision.datasets.MNIST(root='../../data', train=True, download=True)))
 

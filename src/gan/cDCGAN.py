@@ -28,10 +28,10 @@ tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
 nc = 1
-ndf = 128
+ndf = 32
 
 nz = 100
-ngf = 128
+ngf = 32
 ncls = 10
 
 image_size = 32
@@ -44,27 +44,20 @@ beta2 = 0.999
 ngpu = 1
 
 
-# fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
+# fixed data for generator input
+g_fixed_label = torch.zeros(ncls*10, ncls)
+g_fixed_label_index = torch.LongTensor([ i//10 for i in range(100) ]).view(ncls*10, 1)
+g_fixed_label = g_fixed_label.scatter_(1, g_fixed_label_index, 1).view(ncls*10, ncls, 1, 1).to(device)
 
-# fixed noise & label
-temp_z_ = torch.randn(10, 100)
-fixed_z_ = temp_z_
-fixed_y_ = torch.zeros(10, 1)
-for i in range(9):
-    fixed_z_ = torch.cat([fixed_z_, temp_z_], 0)
-    temp = torch.ones(10, 1) + i
-    fixed_y_ = torch.cat([fixed_y_, temp], 0)
+g_fixed_noise = torch.randn((10, 100, 1, 1)).repeat(10, 1, 1, 1).to(device)
+print(g_fixed_noise.size())
+print(g_fixed_label.size())
 
-fixed_z_ = fixed_z_.view(-1, 100, 1, 1).to(device)
+# label format for training generator
+label2Glabel = torch.zeros((ncls, ncls))
+g_label_index = torch.LongTensor([ i for i in range(10) ]).view(ncls, 1)
+label2Glabel = label2Glabel.scatter_(1, g_label_index, 1).view(ncls, ncls, 1, 1).to(device)
 
-fixed_y_label_ = torch.zeros(100, 10)
-fixed_y_label_.scatter_(1, fixed_y_.type(torch.LongTensor), 1)
-fixed_y_label_ = fixed_y_label_.view(-1, 10, 1, 1).to(device)
-
-
-onehot = torch.zeros(ncls, ncls)
-onehot = onehot.scatter_(1, torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-                         .view(ncls, 1), 1).view(ncls, ncls, 1, 1)
 
 # sample_dir = '../samples'
 # Create a directory if not exists
@@ -117,8 +110,8 @@ def weights_init(m):
 
 
 # Device setting
-D = Discriminator(nc=nc, ndf=ndf, ngpu=1).to(device)
-G = Generator(nz=nz, nc=nc, ngf=ngf, ncls=ncls, ngpu=1).to(device)
+D = Discriminator(nc=nc, ndf=ndf).to(device)
+G = Generator(nz=nz, nc=nc, ngf=ngf, ncls=ncls).to(device)
 
 # temp_in = torch.randn((10,3,32,32)).to(device)
 # for i in D.modules():
@@ -165,8 +158,8 @@ for epoch in range(num_epochs):
         labels = labels.to(device)
 
         # Create the labels which are later used as input for the BCE loss
-        real_labels = torch.ones((batch,) ).to(device)
-        fake_labels = torch.zeros((batch,) ).to(device)
+        # real_labels = torch.ones((batch,) ).to(device)
+        # fake_labels = torch.zeros((batch,) ).to(device)
 
         # Labels shape is (batch_size, 1): [batch_size, 1]
 
@@ -179,13 +172,13 @@ for epoch in range(num_epochs):
         # Second term of the loss is always zero since real_labels == 1
         out_adv, out_cls = D(images)
 
-        out_adv = out_adv.view(-1)
-        out_cls = out_cls.view(-1, 10)
+        out_adv = out_adv.squeeze()
+        out_cls = out_cls.squeeze()
         # d_loss_real = criterion(outputs, real_labels)
 
         d_loss_adv = F.relu(1.-out_adv).mean()
         d_loss_cls = F.cross_entropy(out_cls, labels)
-        d_loss_real = d_loss_adv + d_loss_cls
+        d_loss_real = .5 * (d_loss_adv + d_loss_cls)
 
         real_score = out_adv
         real_cls_loss = d_loss_cls
@@ -194,18 +187,20 @@ for epoch in range(num_epochs):
         # First term of the loss is always zero since fake_labels == 0
         # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
         c_ = (torch.rand(batch, 1) * ncls).long().squeeze().to(device) # 균등한 확률로 0~1사이의 랜덤
-        cls = onehot[c_].to(device)
+        cls = label2Glabel[c_].to(device)
+
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
+
         fake_images = G(z, cls)
 
         out_adv, out_cls = D(fake_images.detach())
-        out_adv = out_adv.view(-1)
-        out_cls = out_cls.view(-1, 10)
+        out_adv = out_adv.squeeze()
+        out_cls = out_cls.squeeze()
 
         # d_loss_fake = criterion(outputs, fake_labels)
         d_loss_adv = F.relu(1.+out_adv).mean()
         d_loss_cls = F.cross_entropy(out_cls, labels)
-        d_loss_fake = d_loss_adv + d_loss_cls
+        d_loss_fake = .5 * (d_loss_adv + d_loss_cls)
 
         fake_score = out_adv
         fake_cls_loss = d_loss_cls
@@ -227,12 +222,12 @@ for epoch in range(num_epochs):
         # z = torch.randn(batch_size, latent_size).to(device)
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
         c_ = (torch.rand(batch, 1) * ncls).long().squeeze().to(device)
-        cls = onehot[c_].to(device)
+        cls = label2Glabel[c_].to(device)
         fake_images = G(z, cls)
 
         out_adv, out_cls = D(fake_images)
-        out_adv = out_adv.view(-1)
-        out_cls = out_cls.view(-1, 10)
+        out_adv = out_adv.squeeze()
+        out_cls = out_cls.squeeze()
 
         g_loss_adv = -out_adv.mean()
         g_loss_cls = F.cross_entropy(out_cls, labels)
@@ -243,7 +238,7 @@ for epoch in range(num_epochs):
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
         # g_loss = criterion(outputs, real_labels)
-        g_loss = g_loss_adv + g_loss_cls
+        g_loss = .5 * (g_loss_adv + g_loss_cls)
 
         # Backprop and optimize
         reset_grad()
@@ -275,7 +270,7 @@ for epoch in range(num_epochs):
     # tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
     # tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
 
-    result_images = denorm(G(fixed_z_, fixed_y_label_))
+    result_images = denorm(G(g_fixed_noise, g_fixed_label))
     tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=result_images)
 
     # Save sampled images

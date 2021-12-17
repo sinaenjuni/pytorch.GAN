@@ -109,26 +109,32 @@ if __name__ == '__main__':
     ncls = 10
     batch_size = 128
 
-    fixed_label = torch.zeros(ncls*10, ncls)
-    fixed_label_index = torch.LongTensor([ i//10 for i in range(100) ]).view(ncls*10, 1)
-    fixed_label = fixed_label.scatter_(1, fixed_label_index, 1).view(ncls*10, ncls, 1, 1)
+# fixed data for generator input
+    g_fixed_label = torch.zeros(ncls*10, ncls)
+    g_fixed_label_index = torch.LongTensor([ i//10 for i in range(100) ]).view(ncls*10, 1)
+    g_fixed_label = g_fixed_label.scatter_(1, g_fixed_label_index, 1).view(ncls*10, ncls, 1, 1)
 
-    fixed_noise = torch.randn((10, 100, 1, 1)).repeat(10, 1, 1, 1)
-    print(fixed_noise.size())
-    print(fixed_label.size())
+    g_fixed_noise = torch.randn((10, 100, 1, 1)).repeat(10, 1, 1, 1)
+    print(g_fixed_noise.size())
+    print(g_fixed_label.size())
 
+# label format for training generator
     g_label = torch.zeros((ncls, ncls))
     g_label_index = torch.LongTensor([ i for i in range(10) ]).view(ncls, 1)
     g_label = g_label.scatter_(1, g_label_index, 1).view(ncls, ncls, 1, 1)
 
+# define model
     # print(onehot)
     G = Generator(nz=nz, nc=nc, ngf=ngf, ncls=ncls)
     D = Discriminator(nc=nc, ndf=ndf)
 
+    for g in G.named_parameters():
+        print(g)
+
     # noise = torch.randn((batch_size, nz, 1, 1))
     # condition = torch.rand((batch_size, ncls, 1, 1))
     # print(noise.size(), condition.size())
-    g_out = G(fixed_noise, fixed_label)
+    g_out = G(g_fixed_noise, g_fixed_label)
     print(g_out.size())
 
     img = torch.randn((100, nc, 32, 32))

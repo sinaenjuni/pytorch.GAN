@@ -6,7 +6,7 @@ import os, sys
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset, Sampler
 from PIL import Image
-from imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
+from .imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
 
 
 class BalancedSampler(Sampler):

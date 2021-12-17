@@ -76,36 +76,36 @@ class MNIST:
                                         transforms.Normalize(mean=[0.5],  # 1 for greyscale channels
                                                              std=[0.5])])
         # MNIST dataset
-        self.train_dataset = torchvision.datasets.MNIST(root='../../data/',
-                                                   train=True,
-                                                   download=True)
+        self.train_dataset = torchvision.datasets.MNIST(root = '../../data/',
+                                                   train = True,
+                                                   download = True)
         # MNIST dataset
-        self.test_dataset = torchvision.datasets.MNIST(root='../../data/',
-                                                   train=False,
-                                                   download=True)
+        self.test_dataset = torchvision.datasets.MNIST(root = '../../data/',
+                                                   train = False,
+                                                   download = True)
         self.labels = np.array(list(self.train_dataset.train_labels))
         print(self.classes)
         print(self.labels)
 
     def getTrainDataset(self, transforms=None):
         if transforms is not None:
-            self.train_dataset.transform=transforms
+            self.train_dataset.transform = transforms
         else:
-            self.train_dataset.transform=self.transform
+            self.train_dataset.transform = self.transform
         return self.train_dataset
 
     def getTestDataset(self, transforms=None):
         if transforms is not None:
-            self.test_dataset.transform=transforms
+            self.test_dataset.transform = transforms
         else:
-            self.test_dataset.transform=self.transform
+            self.test_dataset.transform = self.transform
         return self.test_dataset
 
     def getTransformedDataset(self, ratio):
-        return getSubDataset(dataset=self.train_dataset,
-                                                   class_index=self.classes,
-                                                   labels=self.labels,
-                                                   lratio=ratio)
+        return getSubDataset(dataset = self.train_dataset,
+                                                   class_index = self.classes,
+                                                   labels = self.labels,
+                                                   lratio = ratio)
 
 # if __name__ == '__main__':
 #     mnist = MNIST()
