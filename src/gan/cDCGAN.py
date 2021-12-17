@@ -28,10 +28,10 @@ tb = getTensorboard(log_dir=tensorboard_path)
 
 # Hyper-parameters
 nc = 1
-ndf = 32
+ndf = 128
 
 nz = 100
-ngf = 32
+ngf = 128
 ncls = 10
 
 image_size = 32
@@ -178,19 +178,16 @@ for epoch in range(num_epochs):
 
         d_loss_adv = F.relu(1.-out_adv).mean()
         d_loss_cls = F.cross_entropy(out_cls, labels)
-        d_loss_real = .5 * (d_loss_adv + d_loss_cls)
+        d_loss_real = (d_loss_adv + d_loss_cls)
 
         real_score = out_adv
         real_cls_loss = d_loss_cls
 
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
-        # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
         c_ = (torch.rand(batch, 1) * ncls).long().squeeze().to(device) # 균등한 확률로 0~1사이의 랜덤
         cls = label2Glabel[c_].to(device)
-
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
-
         fake_images = G(z, cls)
 
         out_adv, out_cls = D(fake_images.detach())
@@ -199,8 +196,8 @@ for epoch in range(num_epochs):
 
         # d_loss_fake = criterion(outputs, fake_labels)
         d_loss_adv = F.relu(1.+out_adv).mean()
-        d_loss_cls = F.cross_entropy(out_cls, labels)
-        d_loss_fake = .5 * (d_loss_adv + d_loss_cls)
+        d_loss_cls = F.cross_entropy(out_cls, c_)
+        d_loss_fake = (d_loss_adv + d_loss_cls)
 
         fake_score = out_adv
         fake_cls_loss = d_loss_cls
@@ -216,10 +213,7 @@ for epoch in range(num_epochs):
         #                        Train the generator                         #
         # ================================================================== #
 
-
-
         # Compute loss with fake images
-        # z = torch.randn(batch_size, latent_size).to(device)
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
         c_ = (torch.rand(batch, 1) * ncls).long().squeeze().to(device)
         cls = label2Glabel[c_].to(device)
@@ -230,7 +224,7 @@ for epoch in range(num_epochs):
         out_cls = out_cls.squeeze()
 
         g_loss_adv = -out_adv.mean()
-        g_loss_cls = F.cross_entropy(out_cls, labels)
+        g_loss_cls = F.cross_entropy(out_cls, c_)
 
         gened_score = out_adv
 
@@ -238,7 +232,7 @@ for epoch in range(num_epochs):
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
         # g_loss = criterion(outputs, real_labels)
-        g_loss = .5 * (g_loss_adv + g_loss_cls)
+        g_loss = (g_loss_adv + g_loss_cls)
 
         # Backprop and optimize
         reset_grad()
@@ -246,7 +240,9 @@ for epoch in range(num_epochs):
         g_optimizer.step()
 
         if (i + 1) % 200 == 0:
-            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
+            print('Epoch [{}/{}], Step [{}/{}], '
+                  'd_loss: {:.4f}, g_loss: {:.4f}, '
+                  'D(x): {:.2f}, D(G(z)): {:.2f}'
                   .format(epoch+1, num_epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
                           real_score.mean().item(), fake_score.mean().item()))
 
