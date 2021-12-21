@@ -105,7 +105,7 @@ for epoch in range(num_epochs):
 
         train_loss += loss
         pred = pred.argmax(-1)
-        train_accuracy += (pred == target).sum()
+        train_accuracy += (pred == target).sum()/len(data)
 
         # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
 
@@ -120,7 +120,7 @@ for epoch in range(num_epochs):
         # test_loss += loss
 
         pred = pred.argmax(-1)
-        test_accuracy += (pred == target).sum()
+        test_accuracy += (pred == target).sum()/len(data)
 
 
     print(f"epochs: {epoch}, "
