@@ -55,32 +55,19 @@ test_transform = transforms.Compose([
     normalize,
 ])
 
-train_dataset = torchvision.datasets.CIFAR10(root='../../data/',
-                                   train=True,
-                                   transform=train_transform,
-                                   download=True)
-
-test_dataset = torchvision.datasets.CIFAR10(root='../../data/',
-                                   train=False,
-                                   transform=test_transform,
-                                   download=True)
-
 
 # Define DataLoader
-train_loader = DataLoader(dataset=train_dataset,
-                          batch_size=batch_size,
-                          shuffle=True,
-                          num_workers=num_workers)
-
-train_dataset_im = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                               batch_size=batch_size,
                                               shuffle=True, num_workers=num_workers, training=True, imb_factor=0.01)
 
-test_loader = DataLoader(dataset=test_dataset,
-                         batch_size=batch_size,
-                         shffle=False,
-                         num_workers=num_workers)
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+                                              batch_size=batch_size,
+                                              shuffle=False, num_workers=num_workers, training=False)
 
+
+print("Number of train dataset", len(train_data_loader.dataset))
+print("Number of test dataset", len(test_data_loader.dataset))
 
 # Define model
 model = resnet32(num_classes=10, use_norm=True).to(device)
@@ -93,12 +80,22 @@ optimizer = torch.optim.SGD(model.parameters(),
                             momentum=momentum,
                             weight_decay=weight_decay)
 
+train_best_accuracy = 0
+train_best_accuracy_epoch = 0
+test_best_accuracy = 0
+test_best_accuracy_epoch = 0
 
+# Training model
+for epoch in range(num_epochs):
+    train_accuracy = 0
+    test_accuracy = 0
+    train_loss = 0
+    test_loss = 0
+    for train_idx, data in enumerate(train_data_loader):
+        img, target = data
+        img, target = img.to(device), target.to(device)
 
-for epoch in num_epochs:
-    for batch_idx, data in enumerate(train_loader):
-        img, target = data.to(device)
-
+        model.train()
         pred = model(img)
 
         loss = F.cross_entropy(pred, target)
@@ -106,7 +103,31 @@ for epoch in num_epochs:
         optimizer.step()
         optimizer.zero_grad()
 
-        print(f"epochs: {epoch}, loss: {loss.item()}")
+        train_loss += loss
+        pred = pred.argmax(-1)
+        train_accuracy += (pred == target).sum()
+
+        # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
+
+
+    for test_idx, data in enumerate(test_data_loader):
+        img, target = data
+        img, target = img.to(device), target.to(device)
+
+        model.eval()
+        pred = model(img)
+        # loss = F.cross_entropy(pred, target)
+        # test_loss += loss
+
+        pred = pred.argmax(-1)
+        test_accuracy += (pred == target).sum()
+
+
+    print(f"epochs: {epoch}, "
+          f"train_loss: {train_loss/len(train_data_loader):.4}, "
+          # f"test_loss: {test_loss/len(test_data_loader):.4}. "
+          f"train_acc: {train_accuracy/len(train_data_loader):.4}, "
+          f"test_acc: {test_accuracy/len(test_data_loader):.4}")
 
 
 

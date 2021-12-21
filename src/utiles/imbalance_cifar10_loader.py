@@ -66,7 +66,7 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
         ])
 
         if training:
-            dataset = IMBALANCECIFAR10(data_dir, train=True, download=True, transform=train_trsfm, imb_factor=0.01)
+            dataset = IMBALANCECIFAR10(data_dir, train=True, download=True, transform=train_trsfm, imb_factor=imb_factor)
             val_dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=test_trsfm)  # test set
         else:
             dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=test_trsfm)  # test set
