@@ -23,10 +23,10 @@ name = 'cifar_cls'
 tensorboard_path = f'../../tb_logs/ResNet_s/{name}'
 
 num_workers = 4
-num_epochs = 200
+num_epochs = 800
 batch_size = 128
 
-learning_rate = 0.1
+learning_rate = 0.001
 weight_decay = 5e-4
 momentum = 0.9
 nesterov = True
@@ -38,23 +38,6 @@ print('device:', device)
 
 # Define Tensorboard
 tb = getTensorboard(tensorboard_path)
-
-
-# Define dataset
-normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                 std=[0.2023, 0.1994, 0.2010])
-train_transform = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(15),
-    transforms.ToTensor(),
-    normalize,
-])
-test_transform = transforms.Compose([
-    transforms.ToTensor(),
-    normalize,
-])
-
 
 # Define DataLoader
 train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
@@ -75,9 +58,9 @@ print(model)
 
 
 # Define optimizer
-optimizer = torch.optim.SGD(model.parameters(),
+optimizer = torch.optim.Adam(model.parameters(),
                             lr=learning_rate,
-                            momentum=momentum,
+                            # momentum=momentum,
                             weight_decay=weight_decay)
 
 train_best_accuracy = 0
@@ -94,6 +77,7 @@ for epoch in range(num_epochs):
     for train_idx, data in enumerate(train_data_loader):
         img, target = data
         img, target = img.to(device), target.to(device)
+        batch = img.size(0)
 
         model.train()
         pred = model(img)
@@ -105,14 +89,14 @@ for epoch in range(num_epochs):
 
         train_loss += loss
         pred = pred.argmax(-1)
-        train_accuracy += (pred == target).sum()/len(data)
-
+        train_accuracy += (pred == target).sum()/batch
         # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
 
 
     for test_idx, data in enumerate(test_data_loader):
         img, target = data
         img, target = img.to(device), target.to(device)
+        batch = img.size(0)
 
         model.eval()
         pred = model(img)
@@ -120,14 +104,27 @@ for epoch in range(num_epochs):
         # test_loss += loss
 
         pred = pred.argmax(-1)
-        test_accuracy += (pred == target).sum()/len(data)
+        test_accuracy += (pred == target).sum()/batch
 
+
+    train_loss = train_loss/len(train_data_loader)
+    train_accuracy = train_accuracy/len(train_data_loader)
+    test_accuracy = test_accuracy/len(test_data_loader)
+
+    if train_best_accuracy < train_accuracy:
+        train_best_accuracy = train_accuracy
+        train_best_accuracy_epoch = epoch
+    if test_best_accuracy < test_accuracy:
+        test_best_accuracy = test_accuracy
+        test_best_accuracy_epoch = epoch
 
     print(f"epochs: {epoch}, "
-          f"train_loss: {train_loss/len(train_data_loader):.4}, "
+          f"train_loss: {train_loss:.4}, "
           # f"test_loss: {test_loss/len(test_data_loader):.4}. "
-          f"train_acc: {train_accuracy/len(train_data_loader):.4}, "
-          f"test_acc: {test_accuracy/len(test_data_loader):.4}")
+          f"train_acc: {train_accuracy:.4}, "
+          f"test_acc: {test_accuracy:.4}, "
+          f"train_best_acc: {train_best_accuracy:.4}({train_best_accuracy_epoch}), "
+          f"test_best_acc: {test_best_accuracy:.4}({test_best_accuracy_epoch})")
 
 
 
