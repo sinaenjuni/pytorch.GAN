@@ -32,6 +32,7 @@ momentum = 0.9
 nesterov = True
 
 
+
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)

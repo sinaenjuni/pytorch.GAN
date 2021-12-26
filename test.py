@@ -196,8 +196,9 @@ import torch.nn.functional as F
 #         img_num_per_cls.append(int(num))
 # print(img_num_per_cls)
 #
-batch = 64
-ncls=10
-c_ = (torch.rand(batch, 1) * ncls).long().squeeze()
-print(c_)
 
+import numpy as np
+print(np.power(2, 6))
+
+for i in range(1, 5):
+    print(i)

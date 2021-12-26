@@ -20,9 +20,10 @@ from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 from models.resnet_s import resnet32
 from models.cDCGAN import Generator
 
+
 # Define hyper-parameters
-name = 'cifar_cls'
-tensorboard_path = f'../../tb_logs/ResNet_s/{name}'
+name = 'prop5/test1'
+tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
 num_epochs = 800
@@ -54,9 +55,28 @@ test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
 print("Number of train dataset", len(train_data_loader.dataset))
 print("Number of test dataset", len(test_data_loader.dataset))
 
+# Define hyper-parameters
+name = 'prop5/test1'
+tensorboard_path = f'../../tb_logs/{name}'
+
+num_workers = 4
+num_epochs = 800
+batch_size = 128
+
+learning_rate = 0.001
+weight_decay = 5e-4
+momentum = 0.9
+nesterov = True
+
+beta1 = 0.5
+beta2 = 0.999
+
+nz = 100
+nc = 3
+ncls = 10
+ngf = 32
 
 # Define Discriminator
-
 class Propose(nn.Module):
     def __init__(self, back_born_model, in_channels=32, ndf=32):
         super(Propose, self).__init__()
@@ -88,7 +108,7 @@ class Propose(nn.Module):
             nn.BatchNorm2d(ndf*4),
             nn.ReLU(True),
             nn.Conv2d(in_channels=ndf*4,
-                      out_channels=ndf*8,
+                      out_channels=1,
                       kernel_size=3,
                       stride=1,
                       padding=1,
@@ -116,10 +136,14 @@ input_tensor = torch.rand((32,3,32,32)).to(device)
 # Define model
 model = resnet32(num_classes=10, use_norm=True).to(device)
 proposed = Propose(model).to(device)
+generator = Generator(nz, nc, ncls, ngf)
 
 classifier, discriminator = proposed(input_tensor)
 print(classifier.size(), discriminator.size())
 
+
+proposed_optimizer = torch.optim.Adam(proposed.parameters(), lr=learning_rate, betas=(beta1, beta2))
+generator_optimizer = torch.optim.Adam(generator.parameters(), lr=learning_rate, betas=(beta1, beta2))
 
 
 # x = input_tensor
