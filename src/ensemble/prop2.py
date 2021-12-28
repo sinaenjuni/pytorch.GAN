@@ -68,6 +68,8 @@ transformed_dataset, count = getSubDataset(dataset=train_dataset,
                                      class_index=classes,
                                      labels=labels,
                                      lratio=ratio)
+
+
 fig = plt.figure(figsize=(9, 6))
 sns.barplot(
     data=count,

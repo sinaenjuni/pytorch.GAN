@@ -16,8 +16,9 @@ sys.path.append('..')
 from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from models.resnet import ResNet18
+from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 
-name = 'prop3/test2_im'
+name = 'prop3/test10_im_weighted'
 tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
@@ -36,62 +37,59 @@ ngf=32
 ndf=32
 ngpu=1
 
-
+classes = ["plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 # Transformation define
-transform = transforms.Compose([
-    # transforms.Resize(image_size),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5, 0.5, 0.5],  # 3 for greyscale channels
-                         std=[0.5, 0.5, 0.5])])
+# transform = transforms.Compose([
+#     # transforms.Resize(image_size),
+#     transforms.ToTensor(),
+#     transforms.Normalize(mean=[0.5, 0.5, 0.5],  # 3 for greyscale channels
+#                          std=[0.5, 0.5, 0.5])])
 
 # Dataset define
-train_dataset = torchvision.datasets.CIFAR10(root='../../data/',
-                                   train=True,
-                                   transform=transform,
-                                   download=True)
-
-test_dataset = torchvision.datasets.CIFAR10(root='../../data/',
-                                   train=False,
-                                   transform=transform,
-                                   download=True)
 
 
 # Dataset modify
-mnist = MNIST(32)
-train_dataset = mnist.getTrainDataset()
-transformed_dataset, count = mnist.getTransformedDataset()
-test_dataset = mnist.getTestDataset()
-
-fig = plt.figure(figsize=(9, 6))
-sns.barplot(
-    data=count,
-    x="class",
-    y="original"
-)
-plt.tight_layout()
-tb.add_figure(tag='original_data_dist', figure=fig)
+# mnist = MNIST(32)
+# train_dataset = mnist.getTrainDataset()
+# transformed_dataset, count = mnist.getTransformedDataset()
+# test_dataset = mnist.getTestDataset()
+#
+# fig = plt.figure(figsize=(9, 6))
+# sns.barplot(
+#     data=count,
+#     x="class",
+#     y="original"
+# )
+# plt.tight_layout()
+# tb.add_figure(tag='original_data_dist', figure=fig)
 # plt.show()
-
-fig = plt.figure(figsize=(9, 6))
-sns.barplot(
-    data=count,
-    x="class",
-    y="transformed"
-)
-plt.tight_layout()
-tb.add_figure(tag='transformed_data_dist', figure=fig)
+#
+# fig = plt.figure(figsize=(9, 6))
+# sns.barplot(
+#     data=count,
+#     x="class",
+#     y="transformed"
+# )
+# plt.tight_layout()
+# tb.add_figure(tag='transformed_data_dist', figure=fig)
 # plt.show()
 
 
 # Data loader
-train_data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
-                                          batch_size=batch_size,
-                                          shuffle=True)
+# train_data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
+#                                           batch_size=batch_size,
+#                                           shuffle=True)
+#
+# test_data_loader = torch.utils.data.DataLoader(dataset=test_dataset,
+#                                                batch_size=batch_size,
+#                                                shuffle=False)
 
-test_data_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                               batch_size=batch_size,
-                                               shuffle=False)
-
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
+                                        shuffle=True, num_workers=4, training=True,
+                                        imb_factor=0.01)
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
+                                        shuffle=True, num_workers=4, training=False,
+                                        imb_factor=0.01)
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -145,8 +143,8 @@ class Discriminator(nn.Module):
 # Device setting
 model = Discriminator(ngpu).to(device)
 
-SAVE_PATH = f'../../weights/DCGAN/test1/'
-model.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'), strict=False)
+SAVE_PATH = f'../../weights/DCGAN/cifar10_test10/'
+model.load_state_dict(torch.load(SAVE_PATH + 'D_300.pth'), strict=False)
 
 criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -246,7 +244,7 @@ for epoch in range(num_epochs):
                                     'test': acc_test})
 
     arr = confusion_matrix(labels_test, preds_test)
-    class_names = [i for i in classes.keys()]
+    class_names = [i for i in classes]
     df_cm = pd.DataFrame(arr, class_names, class_names)
 
     fig = plt.figure(figsize=(9, 6))

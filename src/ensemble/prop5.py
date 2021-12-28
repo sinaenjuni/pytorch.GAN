@@ -18,8 +18,8 @@ from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 from models.resnet_s import resnet32
-from models.cDCGAN import Generator
-
+# from models.cDCGAN import Generator
+from models.myGAN import Generator
 
 # Define hyper-parameters
 name = 'prop5/test1'
@@ -159,6 +159,19 @@ generator = Generator(nz, nc, ncls, ngf).to(device)
 # input_tensor = torch.rand((32,3,32,32)).to(device)
 # classifier, discriminator = proposed(input_tensor)
 # print(classifier.size(), discriminator.size())
+
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
+
+proposed.apply(weights_init)
+generator.apply(weights_init)
+
+
 
 
 proposed_optimizer = torch.optim.Adam(proposed.parameters(), lr=learning_rate, betas=(beta1, beta2))

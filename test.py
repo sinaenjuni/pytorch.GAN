@@ -197,8 +197,38 @@ import torch.nn.functional as F
 # print(img_num_per_cls)
 #
 
-import numpy as np
-print(np.power(2, 6))
+# import numpy as np
+# print(np.power(2, 6))
+#
+# for i in range(1, 5):
+#     print(i)
 
-for i in range(1, 5):
+
+
+
+classes = 10
+counts = [ 5000 * (0.5 ** i) for i in range(classes)]
+print(counts)
+
+# majority = 5000+2500+1250+625+312
+majority = 2500
+# minority = 156+78+39+19+9
+minority = 2500
+
+# non_weighted = [912, 873, 559, 411, 229, 126, 89, 52, 2, 0]
+# weighted =     [914, 890, 596, 475, 338, 183, 245, 103, 9, 3]
+non_weighted = [926, 967, 691, 630, 660, 535, 550, 454, 288, 124]
+weighted =     [918, 949, 739, 644, 554, 449, 588, 478, 324, 142]
+
+non_weighted_acc=0
+weighted_acc=0
+for i in range(5, 10, 1):
     print(i)
+    non_weighted_acc += non_weighted[i]
+    weighted_acc += weighted[i]
+
+print(non_weighted_acc)
+print(weighted_acc)
+print((weighted_acc/5000)*100)
+print((non_weighted_acc/5000)*100)
+
