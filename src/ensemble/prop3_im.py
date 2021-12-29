@@ -18,7 +18,8 @@ from utiles.data import getSubDataset
 from models.resnet import ResNet18
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 
-name = 'prop3/test10_im_weighted'
+# name = 'prop3/test10_im_weighted'
+name = 'prop3/test10_im'
 tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
@@ -144,7 +145,7 @@ class Discriminator(nn.Module):
 model = Discriminator(ngpu).to(device)
 
 SAVE_PATH = f'../../weights/DCGAN/cifar10_test10/'
-model.load_state_dict(torch.load(SAVE_PATH + 'D_300.pth'), strict=False)
+# model.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'), strict=False)
 
 criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
