@@ -18,8 +18,7 @@ from utiles.data import getSubDataset
 from models.resnet import ResNet18
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 
-# name = 'prop3/test10_im_weighted'
-name = 'prop3/test10_im'
+name = 'experiments/classifier/cifar10_dist/test1(base)'
 tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
@@ -85,12 +84,19 @@ classes = ["plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 #                                                batch_size=batch_size,
 #                                                shuffle=False)
 
-train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
-                                        shuffle=True, num_workers=4, training=True,
-                                        imb_factor=0.01)
-test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
-                                        shuffle=True, num_workers=4, training=False,
-                                        imb_factor=0.01)
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+                                               batch_size=batch_size,
+                                               shuffle=True,
+                                               training=True,
+                                               imb_factor=0.01)
+
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+                                              batch_size=batch_size,
+                                              shuffle=False,
+                                              training=False,
+                                              imb_factor=0.01)
+print(len(train_data_loader.dataset))
+print(len(test_data_loader.dataset))
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -144,8 +150,8 @@ class Discriminator(nn.Module):
 # Device setting
 model = Discriminator(ngpu).to(device)
 
-SAVE_PATH = f'../../weights/DCGAN/cifar10_test10/'
-# model.load_state_dict(torch.load(SAVE_PATH + 'D_200.pth'), strict=False)
+# SAVE_PATH = f'../../weights/experiments/DCGAN/cifar10_dist/test1/D_200.pth'
+# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -237,12 +243,13 @@ for epoch in range(num_epochs):
 
     tb.add_scalars(global_step=epoch+1,
                    main_tag='loss',
-                   tag_scalar_dict={'train':loss_train,
-                                    'test':loss_test})
+                   tag_scalar_dict={'train': loss_train,
+                                     'test': loss_test})
+
     tb.add_scalars(global_step=epoch+1,
                    main_tag='acc',
                    tag_scalar_dict={'train': acc_train,
-                                    'test': acc_test})
+                                     'test': acc_test})
 
     arr = confusion_matrix(labels_test, preds_test)
     class_names = [i for i in classes]

@@ -205,27 +205,27 @@ import torch.nn.functional as F
 
 
 
-import numpy as np
-
-classes = 10
-counts = [ 5000 * (0.5 ** i) for i in range(classes)]
-print(counts)
-
-# majority = 5000+2500+1250+625+312
-majority = 2500
-# minority = 156+78+39+19+9
-minority = 2500
-
-non_weighted = [912, 873, 559, 411, 229, 126, 89, 52, 2, 0]
-weighted =     [914, 890, 596, 475, 338, 183, 245, 103, 9, 3]
-non_weighted = [926, 967, 691, 630, 660, 535, 550, 454, 288, 124]
-weighted =     [918, 949, 739, 644, 554, 449, 588, 478, 324, 142]
-
-non_weighted = np.array(non_weighted)
-weighted = np.array(weighted)
-
-print(sum(non_weighted))
-print(sum(weighted))
+# import numpy as np
+#
+# classes = 10
+# counts = [ 5000 * (0.5 ** i) for i in range(classes)]
+# print(counts)
+#
+# # majority = 5000+2500+1250+625+312
+# majority = 2500
+# # minority = 156+78+39+19+9
+# minority = 2500
+#
+# non_weighted = [912, 873, 559, 411, 229, 126, 89, 52, 2, 0]
+# weighted =     [914, 890, 596, 475, 338, 183, 245, 103, 9, 3]
+# non_weighted = [926, 967, 691, 630, 660, 535, 550, 454, 288, 124]
+# weighted =     [918, 949, 739, 644, 554, 449, 588, 478, 324, 142]
+#
+# non_weighted = np.array(non_weighted)
+# weighted = np.array(weighted)
+#
+# print(sum(non_weighted))
+# print(sum(weighted))
 
 # non_weighted_acc=0
 # weighted_acc=0
@@ -260,8 +260,81 @@ print(sum(weighted))
 # for data in cifar10_imbalance_dataset:
 #     img, label = data
 #     print(label)
+class AccPerCls:
+    def __init__(self):
+        self.label = np.array([])
+        self.pred = np.array([])
+
+    def appendLableANDPred(self, label, pred):
+        # label = label.astype(np.int)
+        # pred = pred.astype(np.int)
+
+        self.label = np.append(self.label, label.numpy())
+        self.pred = np.append(self.pred, pred.numpy())
+
+    def getAccPerCle(self):
+        # print(label, pred)
+        unique, counts = np.unique(self.label, return_counts=True)
+        match = (self.label == self.pred)
+
+        print("ID", unique, "개수", counts)
+        print("정답", self.label)
+        print("예측", self.pred)
+        print('일치', match)
+        for unique_, counts_ in zip(unique, counts):
+            print(f'label: {unique_} '
+                  f'match: {match[self.label==unique_].sum()} '
+                  f'count: {counts_} '
+                  f'accuracy per class: {match[self.label==unique_].sum()/counts_}')
+
+        print(f'accuracy: {match.mean()}')
+
+    def flush(self):
+        self.label = np.array([])
+        self.pred = np.array([])
+
+import torch
+import numpy as np
+
+label_ = torch.randint(4, (10,)).cuda()
+pred_ = torch.randint(4, (10,)).cuda()
+
+accPercls = AccPerCls()
+
+label = np.array([])
+pred = np.array([])
+
+for i in range(1):
+    label = np.append(label, label_.cpu().numpy())
+    pred = np.append(pred, pred_.cpu().numpy())
+    # accPercls.appendLableANDPred(label_.cpu(), pred_.cpu())
+
+# label = label.astype(np.int)
+# pred = pred.astype(np.int)
+
+unique, counts = np.unique(label, return_counts=True)
+print(unique, counts)
+match = (label == pred)
+print(match)
+
+counts_per_class = {unique : f"{match[label == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
+acc_per_class = {unique : match[label==unique].sum()/counts for unique, counts in zip(unique, counts)}
+acc = match.mean()
+print(counts_per_class)
+print(acc_per_class)
+print(acc)
 
 
+# accPercls.getAccPerCle()
+# accPercls.flush()
+
+# for label, match in zip(label, match):
+#     print(label, match)
+# label=label.tolist()
 
 
-
+# print(zip(label, match))
+#
+# print(dict(zip(unique, counts)))
+#
+# print(unique, counts)

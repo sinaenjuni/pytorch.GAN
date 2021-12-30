@@ -114,12 +114,22 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
 
 
 if __name__ == "__main__":
-    loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=128,
+    import matplotlib.pyplot as plt
+    from torchvision.utils import make_grid
+
+    loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
                                         imb_factor=0.01)
     print(len(loader))
     for idx, data, in enumerate(loader):
+        img, label = data
         if idx == 1:
             break
         else:
+            grid = make_grid(img)
+            grid = (grid + 1) / 2
+            grid.clamp(0, 1)
+            print(grid.size())
+            plt.imshow(grid.permute(1,2,0))
+            plt.show()
             print(idx, data[1])

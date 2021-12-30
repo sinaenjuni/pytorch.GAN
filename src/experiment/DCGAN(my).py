@@ -9,8 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import sys
-sys.path.append('..')
+# import sys
+# sys.path.append('..')
 from utiles.tensorboard import getTensorboard
 from models.resnet import ResNet18
 from utiles.dataset import CIFAR10, MNIST
@@ -34,7 +34,7 @@ ndf=32
 image_size = 32
 batch_size = 64
 
-num_epochs = 200 * 10
+num_epochs = 200
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999
@@ -198,8 +198,6 @@ for epoch in range(num_epochs):
         fake_labels = torch.zeros((batch,) ).to(device)
 
         # Labels shape is (batch_size, 1): [batch_size, 1]
-
-
         # ================================================================== #
         #                      Train the discriminator                       #
         # ================================================================== #
