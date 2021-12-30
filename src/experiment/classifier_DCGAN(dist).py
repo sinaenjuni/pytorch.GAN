@@ -168,88 +168,85 @@ num_test = len(test_data_loader.dataset)
 best_loss = float("inf")
 
 for epoch in range(num_epochs):
-    loss_train = 0
-    acc_train = 0
-    total_train = 0
+    labels_train = np.array([])
+    preds_train = np.array([])
+    loss_train = np.array([])
 
     for i, (images, labels) in enumerate(train_data_loader):
         model.train()
         images = images.to(device)
         labels = labels.to(device)
 
-        pred = model(images).to(device)
+        preds = model(images).to(device)
         optimizer.zero_grad()
-        loss = criterion(pred, labels)
+        loss = criterion(preds, labels)
         loss.backward()
         optimizer.step()
 
-        loss_train += loss.item()
+        preds = preds.argmax(-1)
 
-        pred = pred.argmax(-1)
-        acc_train += (pred == labels).sum().item()
-        total_train += labels.size(0)
+        labels_train = np.append(labels_train, labels.cpu().numpy())
+        preds_train = np.append(preds_train, preds.cpu().numpy())
+        loss_train = np.append(loss_train, loss.item())
 
-        # acc_train += acc.item()
+        if (i+1) == 100:
+            print('Epoch [{}/{}], Step [{}/{}], loss: {:.4f}, acc: {:.4f}'
+                  .format(epoch + 1, num_epochs,
+                          i + 1, num_train_step,
+                          loss_train.mean(),
+                          (labels_train == preds_train).mean()))
 
-        # if (i + 1) % 100 == 0:
-            # print('Epoch [{}/{}], Step [{}/{}], loss:{:.4f}, acc:{:.4f}'
-            #       .format(epoch+1, num_epochs,
-            #               i + 1, total_step,
-            #               loss.item(), acc_train.item()))
-    print('Epoch [{}/{}], Step [{}/{}], loss:{:.4f}, acc:{:.4f}'
-          .format(epoch + 1, num_epochs,
-                  i + 1, num_train_step,
-                  loss_train/num_train_step,
-                  100.*acc_train/num_train))
 
     with torch.no_grad():
         model.eval()
-        loss_test = 0
-        acc_test = 0
-
-        labels_test = []
-        preds_test = []
+        labels_test = np.array([])
+        preds_test = np.array([])
+        loss_test = np.array([])
 
         for i, (images, labels) in enumerate(test_data_loader):
             images = images.to(device)
             labels = labels.to(device)
 
-            pred = model(images).to(device)
-            loss = criterion(pred, labels)
-            loss_test += loss.item()
+            preds = model(images).to(device)
+            loss = criterion(preds, labels)
+            loss_test = np.append(loss_test, loss.item())
 
-            pred = pred.argmax(-1)
-            acc_test += (pred == labels).sum().item()
+            preds = preds.argmax(-1)
+            labels_test = np.append(labels_test, labels.cpu().numpy())
+            preds_test = np.append(preds_test, preds.cpu().numpy())
 
-            labels_test += labels.tolist()
-            preds_test += pred.tolist()
+        unique, counts = np.unique(labels_test, return_counts=True)
+        match = (labels_test == preds_test)
+
+        counts_per_class = {unique: f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
+        acc_per_class =       {unique: match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
+        acc = match.mean()
 
 
-        # print(loss_test / num_test_step)
-        # print(acc_test / num_test)
-        # print(labels_test, preds_test)
-        # print(confusion_matrix(labels_test, preds_test))
+        print(counts_per_class)
+        print(acc_per_class)
+        print(acc)
+        print(confusion_matrix(labels_test, preds_test))
             # print(labels, pred)
             # arr += confusion_matrix(labels.cpu(), pred.cpu())
         # print(labels_test)
-        # arr = confusion_matrix(labels_test, preds_test)
         # print(arr)
         # print(acc_test)
 
-    loss_train /= num_train_step
-    loss_test /= num_test_step
-    acc_train /= num_train
-    acc_test /= num_test
-
+    # loss_train /= num_train_step
+    # loss_test /= num_test_step
+    # acc_train /= num_train
+    # acc_test /= num_test
+    #
     tb.add_scalars(global_step=epoch+1,
                    main_tag='loss',
-                   tag_scalar_dict={'train': loss_train,
-                                     'test': loss_test})
+                   tag_scalar_dict={'train': loss_train.mean(),
+                                     'test': loss_test.mean()})
 
     tb.add_scalars(global_step=epoch+1,
                    main_tag='acc',
-                   tag_scalar_dict={'train': acc_train,
-                                     'test': acc_test})
+                   tag_scalar_dict={'train': (labels_train == preds_train).mean(),
+                                     'test': (labels_test == preds_test).mean()})
 
     arr = confusion_matrix(labels_test, preds_test)
     class_names = [i for i in classes]
@@ -262,10 +259,10 @@ for epoch in range(num_epochs):
     plt.tight_layout()
     tb.add_figure(tag='confusion_matrix', global_step=epoch + 1, figure=fig)
     # plt.close(fig)
-
-    if best_loss > loss_test:
-        save_path = f'../../weights/{name}/{epoch+1}_{loss_test}.pth'
-        if not os.path.exists(os.path.split(save_path)[0]):
-            os.makedirs(os.path.split(save_path)[0])
-        torch.save(model.state_dict(), save_path)
-        best_loss = loss_test
+    #
+    # if best_loss > loss_test:
+    #     save_path = f'../../weights/{name}/{epoch+1}_{loss_test}.pth'
+    #     if not os.path.exists(os.path.split(save_path)[0]):
+    #         os.makedirs(os.path.split(save_path)[0])
+    #     torch.save(model.state_dict(), save_path)
+    #     best_loss = loss_test

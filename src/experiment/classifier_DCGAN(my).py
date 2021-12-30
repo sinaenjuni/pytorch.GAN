@@ -193,10 +193,6 @@ for epoch in range(num_epochs):
                           loss_train.mean(),
                           (labels_train == preds_train).mean()))
 
-    # match_train = (labels_train == preds_train)
-    # loss_train = loss_train.mean()
-
-
 
     with torch.no_grad():
         model.eval()
@@ -222,18 +218,15 @@ for epoch in range(num_epochs):
         counts_per_class = {unique: f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
         acc_per_class =       {unique: match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
         acc = match.mean()
+
+
         print(counts_per_class)
         print(acc_per_class)
         print(acc)
-
-        # print(loss_test / num_test_step)
-        # print(acc_test / num_test)
-        # print(labels_test, preds_test)
         print(confusion_matrix(labels_test, preds_test))
             # print(labels, pred)
             # arr += confusion_matrix(labels.cpu(), pred.cpu())
         # print(labels_test)
-        arr = confusion_matrix(labels_test, preds_test)
         # print(arr)
         # print(acc_test)
 
@@ -244,13 +237,13 @@ for epoch in range(num_epochs):
     #
     tb.add_scalars(global_step=epoch+1,
                    main_tag='loss',
-                   tag_scalar_dict={'train': loss_train,
-                                     'test': loss_test})
+                   tag_scalar_dict={'train': loss_train.mean(),
+                                     'test': loss_test.mean()})
 
     tb.add_scalars(global_step=epoch+1,
                    main_tag='acc',
-                   tag_scalar_dict={'train': acc_train,
-                                     'test': acc_test})
+                   tag_scalar_dict={'train': (labels_train == preds_train).mean(),
+                                     'test': (labels_test == preds_test).mean()})
 
     arr = confusion_matrix(labels_test, preds_test)
     class_names = [i for i in classes]
