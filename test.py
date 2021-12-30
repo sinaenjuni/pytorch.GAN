@@ -205,24 +205,31 @@ import torch.nn.functional as F
 
 
 
+import numpy as np
 
-# classes = 10
-# counts = [ 5000 * (0.5 ** i) for i in range(classes)]
-# print(counts)
-#
-# # majority = 5000+2500+1250+625+312
-# majority = 2500
-# # minority = 156+78+39+19+9
-# minority = 2500
-#
-# # non_weighted = [912, 873, 559, 411, 229, 126, 89, 52, 2, 0]
-# # weighted =     [914, 890, 596, 475, 338, 183, 245, 103, 9, 3]
-# non_weighted = [926, 967, 691, 630, 660, 535, 550, 454, 288, 124]
-# weighted =     [918, 949, 739, 644, 554, 449, 588, 478, 324, 142]
-#
+classes = 10
+counts = [ 5000 * (0.5 ** i) for i in range(classes)]
+print(counts)
+
+# majority = 5000+2500+1250+625+312
+majority = 2500
+# minority = 156+78+39+19+9
+minority = 2500
+
+non_weighted = [912, 873, 559, 411, 229, 126, 89, 52, 2, 0]
+weighted =     [914, 890, 596, 475, 338, 183, 245, 103, 9, 3]
+non_weighted = [926, 967, 691, 630, 660, 535, 550, 454, 288, 124]
+weighted =     [918, 949, 739, 644, 554, 449, 588, 478, 324, 142]
+
+non_weighted = np.array(non_weighted)
+weighted = np.array(weighted)
+
+print(sum(non_weighted))
+print(sum(weighted))
+
 # non_weighted_acc=0
 # weighted_acc=0
-# for i in range(5, 10, 1):
+# for i in range(0, 10, 1):
 #     print(i)
 #     non_weighted_acc += non_weighted[i]
 #     weighted_acc += weighted[i]
@@ -234,18 +241,18 @@ import torch.nn.functional as F
 
 
 # 데이터셋 개수 확인
-import numpy as np
-from utiles.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
-from torch.utils.data import DataLoader
-
-cifar10_imbalance_dataset = IMBALANCECIFAR100("./data", train=True, download=False, transform=None, imb_factor=0.01)
-print(len(cifar10_imbalance_dataset.targets))
-print(cifar10_imbalance_dataset.classes)
-print(cifar10_imbalance_dataset.class_to_idx)
-print()
-targets = np.array(cifar10_imbalance_dataset.targets)
-unique, count = np.unique(targets, return_counts=True)
-print(dict(zip(unique, count)))
+# import numpy as np
+# from utiles.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
+# from torch.utils.data import DataLoader
+#
+# cifar10_imbalance_dataset = IMBALANCECIFAR100("./data", train=True, download=False, transform=None, imb_factor=0.01)
+# print(len(cifar10_imbalance_dataset.targets))
+# print(cifar10_imbalance_dataset.classes)
+# print(cifar10_imbalance_dataset.class_to_idx)
+# print()
+# targets = np.array(cifar10_imbalance_dataset.targets)
+# unique, count = np.unique(targets, return_counts=True)
+# print(dict(zip(unique, count)))
 
 # cifar10_imbalance_loader = DataLoader(cifar10_imbalance_dataset, )
 

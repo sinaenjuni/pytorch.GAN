@@ -33,7 +33,7 @@ class CIFAR10:
                                            train=False,
                                            download=True)
 
-        self.labels = np.array(list(self.train_dataset.train_labels))
+        self.labels = np.array(list(self.train_dataset.targets))
         print(self.classes)
         print(self.labels)
 

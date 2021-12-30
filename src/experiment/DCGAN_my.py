@@ -14,9 +14,8 @@ sys.path.append('..')
 from utiles.tensorboard import getTensorboard
 from models.resnet import ResNet18
 from utiles.dataset import CIFAR10, MNIST
-from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 
-name = 'DCGAN/cifar10_test10'
+name = 'experiments/DCGAN/cifar10_my/test1'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -29,7 +28,7 @@ tb = getTensorboard(log_dir=tensorboard_path)
 # Hyper-parameters
 nc=3
 nz=100
-ngf=32
+ngf=64
 ndf=32
 
 image_size = 32
@@ -42,7 +41,7 @@ beta2 = 0.999
 ngpu = 1
 
 
-fixed_noise = torch.randn((64, nz, 1, 1)).to(device)
+fixed_noise = torch.randn((batch_size, nz, 1, 1)).to(device)
 
 # sample_dir = '../samples'
 # Create a directory if not exists
@@ -55,14 +54,14 @@ def denorm(x):
 
 # Dataset modify
 # dataset = MNIST(32)
-# dataset = CIFAR10()
-# train_dataset = dataset.getTrainDataset()
-# transformed_dataset, count = dataset.getTransformedDataset([0.01 for i in range(len(dataset.classes))])
-# test_dataset = dataset.getTestDataset()
-#
-# print(train_dataset)
-# print(count)
-#
+dataset = CIFAR10()
+train_dataset = dataset.getTrainDataset()
+transformed_dataset, count = dataset.getTransformedDataset([0.5**i for i in range(len(dataset.classes))])
+test_dataset = dataset.getTestDataset()
+
+print(train_dataset)
+print(count)
+
 # fig = plt.figure(figsize=(9, 6))
 # sns.barplot(
 #     data=count,
@@ -71,15 +70,11 @@ def denorm(x):
 # )
 # plt.tight_layout()
 # tb.add_figure(tag='original_data_dist', figure=fig)
-#
-# # Data loader
-# data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
-#                                           batch_size=batch_size,
-#                                           shuffle=True)
 
-data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
-                                        shuffle=True, num_workers=4, training=True,
-                                        imb_factor=0.01)
+# Data loader
+data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
+                                          batch_size=batch_size,
+                                          shuffle=True)
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -185,9 +180,9 @@ g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(beta1, b
 # g_optimizer = torch.optim.RMSprop(G.parameters(), lr = 0.00005, weight_decay=0)
 
 
-def reset_grad():
-    d_optimizer.zero_grad()
-    g_optimizer.zero_grad()
+# def reset_grad():
+#     d_optimizer.zero_grad()
+#     g_optimizer.zero_grad()
 
 
 # Start training
@@ -209,13 +204,12 @@ for epoch in range(num_epochs):
         #                      Train the discriminator                       #
         # ================================================================== #
 
-        # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
-        # Second term of the loss is always zero since real_labels == 1
-        outputs = D(images)
-        outputs = outputs.view(-1)
+        d_optimizer.zero_grad()
+
+        outputs = D(images).view(-1)
         # d_loss_real = criterion(outputs, real_labels)
-        d_loss_real = F.relu(1.-outputs).mean()
-        real_score = outputs
+        loss_D_real = F.relu(1.-outputs).mean()
+        score_D_real = outputs.mean().item()
 
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
@@ -223,15 +217,14 @@ for epoch in range(num_epochs):
         z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
         fake_images = G(z)
 
-        outputs = D(fake_images.detach())
-        outputs = outputs.view(-1)
+        outputs = D(fake_images.detach()).view(-1)
         # d_loss_fake = criterion(outputs, fake_labels)
-        d_loss_fake = F.relu(1.+outputs).mean()
-        fake_score = outputs
+        loss_D_fake = F.relu(1.+outputs).mean()
+        score_D_fake = outputs.mean().item()
 
         # Backprop and optimize
-        d_loss = d_loss_real + d_loss_fake
-        reset_grad()
+        d_loss = loss_D_real + loss_D_fake
+        # reset_grad()
         d_loss.backward()
         d_optimizer.step()
 
@@ -239,27 +232,29 @@ for epoch in range(num_epochs):
         #                        Train the generator                         #
         # ================================================================== #
 
+        g_optimizer.zero_grad()
+
         # Compute loss with fake images
         # z = torch.randn(batch_size, latent_size).to(device)
         fake_images = G(z)
-        outputs = D(fake_images)
-        outputs = outputs.view(-1)
-        gened_score = outputs
+        outputs = D(fake_images).view(-1)
+        g_loss = -outputs.mean()
+        score_G = outputs.mean().item()
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
         # g_loss = criterion(outputs, real_labels)
-        g_loss = -outputs.mean()
 
         # Backprop and optimize
-        reset_grad()
+        # reset_grad()
         g_loss.backward()
         g_optimizer.step()
 
-        if (i + 1) % 200 == 0:
-            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
-                  .format(epoch+1, num_epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
-                          real_score.mean().item(), fake_score.mean().item()))
+        if (i + 1) % 100 == 0:
+            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f} / {:.2f}'
+                  .format(epoch+1, num_epochs, i + 1, total_step,
+                          d_loss.item(), g_loss.item(),
+                          score_D_real, score_D_fake, score_G))
 
     # Save real images
     # if (epoch + 1) == 1:
@@ -273,8 +268,9 @@ for epoch in range(num_epochs):
 
     tb.add_scalars(global_step=epoch + 1,
                    main_tag='score',
-                   tag_scalar_dict={'real':real_score.mean().item(),
-                                    'fake':fake_score.mean().item()})
+                   tag_scalar_dict={'real':score_D_real,
+                                    'fake':score_D_fake,
+                                    'g':score_G})
 
     # tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
     # tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
