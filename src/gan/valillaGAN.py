@@ -11,7 +11,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # TensorBoard define
-log_dir = '../tb_logs/vanillaGAN/test3'
+log_dir = '../../tb_logs/vanillaGAN/test3'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 tb = SummaryWriter(log_dir=log_dir)
@@ -47,7 +47,7 @@ transform = transforms.Compose([
                          std=[0.5])])
 
 # MNIST dataset
-mnist = torchvision.datasets.MNIST(root='../data/',
+mnist = torchvision.datasets.MNIST(root='../../data/',
                                    train=True,
                                    transform=transform,
                                    download=True)
