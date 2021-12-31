@@ -19,7 +19,7 @@ from models.resnet import ResNet18
 from utiles.dataset import CIFAR10, MNIST
 from utiles.acc_calc import AccPerCls
 
-name = 'experiments/classifier/cifar10_my/test1(base)'
+name = 'experiments/classifier/cifar10_my/test1(200)'
 tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
@@ -147,8 +147,8 @@ class Discriminator(nn.Module):
 
 # Device setting
 model = Discriminator(ngpu).to(device)
-# SAVE_PATH = f'../../weights/experiments/DCGAN/cifar10_my/test1/D_200.pth'
-# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+SAVE_PATH = f'../../weights/experiments/DCGAN/cifar10_my/test1/D_200.pth'
+model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -186,13 +186,12 @@ for epoch in range(num_epochs):
         preds_train = np.append(preds_train, preds.cpu().numpy())
         loss_train = np.append(loss_train, loss.item())
 
-        if (i+1) == 100:
+        if (i + 1) == 100:
             print('Epoch [{}/{}], Step [{}/{}], loss: {:.4f}, acc: {:.4f}'
                   .format(epoch + 1, num_epochs,
                           i + 1, num_train_step,
                           loss_train.mean(),
                           (labels_train == preds_train).mean()))
-
 
     with torch.no_grad():
         model.eval()
@@ -215,17 +214,19 @@ for epoch in range(num_epochs):
         unique, counts = np.unique(labels_test, return_counts=True)
         match = (labels_test == preds_test)
 
-        counts_per_class = {unique: f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
-        acc_per_class =       {unique: match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
+        counts_per_class = {str(unique): f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in
+                            zip(unique, counts)}
+        acc_per_class = {str(unique): match[labels_test == unique].sum() / counts for unique, counts in
+                         zip(unique, counts)}
         acc = match.mean()
 
+        # print(counts_per_class)
+        # print(acc_per_class)
+        # print(acc)
+        # print(confusion_matrix(labels_test, preds_test))
 
-        print(counts_per_class)
-        print(acc_per_class)
-        print(acc)
-        print(confusion_matrix(labels_test, preds_test))
-            # print(labels, pred)
-            # arr += confusion_matrix(labels.cpu(), pred.cpu())
+        # print(labels, pred)
+        # arr += confusion_matrix(labels.cpu(), pred.cpu())
         # print(labels_test)
         # print(arr)
         # print(acc_test)
@@ -235,15 +236,23 @@ for epoch in range(num_epochs):
     # acc_train /= num_train
     # acc_test /= num_test
     #
-    tb.add_scalars(global_step=epoch+1,
+    tb.add_scalars(global_step=epoch + 1,
                    main_tag='loss',
                    tag_scalar_dict={'train': loss_train.mean(),
-                                     'test': loss_test.mean()})
+                                    'test': loss_test.mean()})
 
-    tb.add_scalars(global_step=epoch+1,
+    tb.add_scalars(global_step=epoch + 1,
                    main_tag='acc',
                    tag_scalar_dict={'train': (labels_train == preds_train).mean(),
-                                     'test': (labels_test == preds_test).mean()})
+                                    'test': (labels_test == preds_test).mean()})
+
+    tb.add_text(global_step=epoch + 1,
+                tag='counts_per_class',
+                text_string=str(counts_per_class))
+
+    tb.add_text(global_step=epoch + 1,
+                tag='acc_per_class',
+                text_string=str(acc_per_class))
 
     arr = confusion_matrix(labels_test, preds_test)
     class_names = [i for i in classes]

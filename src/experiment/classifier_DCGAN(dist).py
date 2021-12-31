@@ -18,7 +18,7 @@ from utiles.data import getSubDataset
 from models.resnet import ResNet18
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 
-name = 'experiments/classifier/cifar10_dist/test1(base)'
+name = 'experiments/classifier/cifar10_dist/test1(200)'
 tensorboard_path = f'../../tb_logs/{name}'
 
 # Device configuration
@@ -150,8 +150,8 @@ class Discriminator(nn.Module):
 # Device setting
 model = Discriminator(ngpu).to(device)
 
-# SAVE_PATH = f'../../weights/experiments/DCGAN/cifar10_dist/test1/D_200.pth'
-# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+SAVE_PATH = f'../../weights/experiments/DCGAN/cifar10_dist/test1/D_200.pth'
+model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 criterion = torch.nn.CrossEntropyLoss().to(device)  # 비용 함수에 소프트맥스 함수 포함되어져 있음.
 # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -218,15 +218,16 @@ for epoch in range(num_epochs):
         unique, counts = np.unique(labels_test, return_counts=True)
         match = (labels_test == preds_test)
 
-        counts_per_class = {unique: f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
-        acc_per_class =       {unique: match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
+        counts_per_class = {str(unique): f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
+        acc_per_class =    {str(unique): match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
         acc = match.mean()
 
 
-        print(counts_per_class)
-        print(acc_per_class)
-        print(acc)
-        print(confusion_matrix(labels_test, preds_test))
+        # print(counts_per_class)
+        # print(acc_per_class)
+        # print(acc)
+        # print(confusion_matrix(labels_test, preds_test))
+
             # print(labels, pred)
             # arr += confusion_matrix(labels.cpu(), pred.cpu())
         # print(labels_test)
@@ -247,6 +248,14 @@ for epoch in range(num_epochs):
                    main_tag='acc',
                    tag_scalar_dict={'train': (labels_train == preds_train).mean(),
                                      'test': (labels_test == preds_test).mean()})
+
+    tb.add_text(global_step=epoch+1,
+                   tag='counts_per_class',
+                   text_string=str(counts_per_class))
+
+    tb.add_text(global_step=epoch + 1,
+                tag='acc_per_class',
+                text_string=str(acc_per_class))
 
     arr = confusion_matrix(labels_test, preds_test)
     class_names = [i for i in classes]
