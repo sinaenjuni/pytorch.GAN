@@ -36,7 +36,6 @@ def _weights_init(m):
         init.kaiming_normal_(m.weight)
 
 class NormedLinear(nn.Module):
-
     def __init__(self, in_features, out_features):
         super(NormedLinear, self).__init__()
         self.weight = Parameter(torch.Tensor(in_features, out_features))
@@ -46,14 +45,16 @@ class NormedLinear(nn.Module):
         out = F.normalize(x, dim=1).mm(F.normalize(self.weight, dim=0))
         return out
 
-class LambdaLayer(nn.Module):
 
+
+class LambdaLayer(nn.Module):
     def __init__(self, lambd):
         super(LambdaLayer, self).__init__()
         self.lambd = lambd
 
     def forward(self, x):
         return self.lambd(x)
+
 
 
 class BasicBlock(nn.Module):
@@ -77,7 +78,7 @@ class BasicBlock(nn.Module):
                 # self.shortcut = LambdaLayer(lambda x: F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes // 4, planes // 4), "constant", 0))
                 self.shortcut = LambdaLayer(lambda x:
                                             F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, (planes - in_planes) // 2, (planes - in_planes) // 2), "constant", 0))
-                
+
             elif option == 'B':
                 self.shortcut = nn.Sequential(
                      nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
@@ -85,11 +86,13 @@ class BasicBlock(nn.Module):
                 )
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
+        out = F.leaky_relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
-        out = F.relu(out, inplace=True, negative_slope=0.2)
+        out = F.leaky_relu(out, inplace=True, negative_slope=0.2)
         return out
+
+
 
 
 class ResNet_s(nn.Module):
@@ -122,7 +125,7 @@ class ResNet_s(nn.Module):
         else:
             s = 1
             self.linear = nn.Linear(layer3_output_dim, num_classes)
-        
+
         self.s = s
 
         self.apply(_weights_init)
@@ -149,17 +152,17 @@ class ResNet_s(nn.Module):
             print("Warning: detected at least one frozen BN, set them to eval state. Count:", count)
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
+        out = F.leaky_relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
-        self.feat_before_GAP = out
-        out = F.avg_pool2d(out, out.size()[3])
-        out = out.view(out.size(0), -1)
-        self.feat = out
-        
-        out = self.linear(out)
-        out = out * self.s # This hyperparam s is originally in the loss function, but we moved it here to prevent using s multiple times in distillation.
+        # self.feat_before_GAP = out
+        # out = F.avg_pool2d(out, out.size()[3])
+        # out = out.view(out.size(0), -1)
+        # self.feat = out
+
+        # out = self.linear(out)
+        # out = out * self.s # This hyperparam s is originally in the loss function, but we moved it here to prevent using s multiple times in distillation.
         return out
 
 
@@ -207,9 +210,12 @@ def test(net):
 
 if __name__ == "__main__":
     from torchsummaryX import summary
+    input_tensor = torch.rand((32,3,32,32))
     rest32 = resnet32(10, True)
+    output_tensor = rest32(input_tensor)
+    print(output_tensor.size())
 
-    summary(rest32, torch.zeros((1,3,32,32)))
+    # summary(rest32, torch.zeros((1,3,32,32)))
 
 
         # out = i(input)

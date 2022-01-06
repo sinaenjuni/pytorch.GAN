@@ -16,7 +16,7 @@ from models.resnet import ResNet18
 from utiles.dataset import CIFAR10, MNIST
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 
-name = 'experiments/DCGAN/cifar10_dist/test1'
+name = 'experiments/DCGAN/cifar10_dist/no_GANtest'
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -158,6 +158,10 @@ class Generator(nn.Module):
 D = Discriminator(ngpu).to(device)
 G = Generator(ngpu).to(device)
 
+
+SAVE_PATH = f'../../weights/experiments/DCGAN/cifar10_dist/test1/G_200.pth'
+G.load_state_dict(torch.load(SAVE_PATH), strict=False)
+
 # temp_in = torch.randn((10,3,32,32)).to(device)
 # for i in D.modules():
 #     if 'Conv2d' == i.__class__.__name__:
@@ -182,7 +186,7 @@ G = Generator(ngpu).to(device)
 # Binary cross entropy loss and optimizer
 # criterion = nn.BCELoss()
 d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(beta1, beta2))
-g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(beta1, beta2))
+# g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(beta1, beta2))
 
 # d_optimizer = torch.optim.RMSprop(D.parameters(), lr = 0.00005)#, weight_decay=opt.weight_decay_D)
 # g_optimizer = torch.optim.RMSprop(G.parameters(), lr = 0.00005, weight_decay=0)
@@ -240,45 +244,50 @@ for epoch in range(num_epochs):
         #                        Train the generator                         #
         # ================================================================== #
 
-        g_optimizer.zero_grad()
-
-        # Compute loss with fake images
-        # z = torch.randn(batch_size, latent_size).to(device)
-        fake_images = G(z)
-        outputs = D(fake_images).view(-1)
-        g_loss = -outputs.mean()
-        score_G = outputs.mean().item()
-
-        # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
-        # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
-        # g_loss = criterion(outputs, real_labels)
-
-        # Backprop and optimize
-        # reset_grad()
-        g_loss.backward()
-        g_optimizer.step()
-
-        if (i + 1) % 100 == 0:
-            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f} / {:.2f}'
+        # g_optimizer.zero_grad()
+        #
+        # # Compute loss with fake images
+        # # z = torch.randn(batch_size, latent_size).to(device)
+        # fake_images = G(z)
+        # outputs = D(fake_images).view(-1)
+        # g_loss = -outputs.mean()
+        # score_G = outputs.mean().item()
+        #
+        # # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
+        # # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
+        # # g_loss = criterion(outputs, real_labels)
+        #
+        # # Backprop and optimize
+        # # reset_grad()
+        # g_loss.backward()
+        # g_optimizer.step()
+        #
+        # if (i + 1) % 100 == 0:
+        #     print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f} / {:.2f}'
+        #           .format(epoch+1, num_epochs, i + 1, total_step,
+        #                   d_loss.item(), g_loss.item(),
+        #                   score_D_real, score_D_fake, score_G))
+        if (i + 1) % 10 == 0:
+            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
                   .format(epoch+1, num_epochs, i + 1, total_step,
-                          d_loss.item(), g_loss.item(),
-                          score_D_real, score_D_fake, score_G))
+                          d_loss.item(),
+                          score_D_real, score_D_fake))
 
     # Save real images
     # if (epoch + 1) == 1:
     #     images = images.reshape(images.size(0), 1, 28, 28)
     #     save_image(denorm(images), os.path.join(sample_dir, 'real_images.png'))
 
-    tb.add_scalars(global_step=epoch + 1,
-                   main_tag='loss',
-                   tag_scalar_dict={'discriminator':d_loss.item(),
-                                    'generator':g_loss.item()})
-
-    tb.add_scalars(global_step=epoch + 1,
-                   main_tag='score',
-                   tag_scalar_dict={'real':score_D_real,
-                                    'fake':score_D_fake,
-                                    'g':score_G})
+    # tb.add_scalars(global_step=epoch + 1,
+    #                main_tag='loss',
+    #                tag_scalar_dict={'discriminator':d_loss.item(),
+    #                                 'generator':g_loss.item()})
+    #
+    # tb.add_scalars(global_step=epoch + 1,
+    #                main_tag='score',
+    #                tag_scalar_dict={'real':score_D_real,
+    #                                 'fake':score_D_fake,
+    #                                 'g':score_G})
 
     # tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
     # tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
@@ -287,10 +296,10 @@ for epoch in range(num_epochs):
 
     # result_images = denorm(G(fixed_noise))
     # print(result_images.size())
-    result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
-    tb.add_image(tag='gened_images',
-                  global_step=epoch+1,
-                  img_tensor=result_images)
+    # result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
+    # tb.add_image(tag='gened_images',
+    #               global_step=epoch+1,
+    #               img_tensor=result_images)
 
     # Save sampled images
     # fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
@@ -298,8 +307,8 @@ for epoch in range(num_epochs):
 
 
     # Save the model checkpoints
-    # SAVE_PATH = f'../../weights/{name}/'
-    # if not os.path.exists(SAVE_PATH):
-    #     os.makedirs(SAVE_PATH)
+    SAVE_PATH = f'../../weights/{name}/'
+    if not os.path.exists(SAVE_PATH):
+        os.makedirs(SAVE_PATH)
     # torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
-    # torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')
+    torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')

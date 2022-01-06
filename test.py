@@ -260,69 +260,69 @@ import torch.nn.functional as F
 # for data in cifar10_imbalance_dataset:
 #     img, label = data
 #     print(label)
-class AccPerCls:
-    def __init__(self):
-        self.label = np.array([])
-        self.pred = np.array([])
-
-    def appendLableANDPred(self, label, pred):
-        # label = label.astype(np.int)
-        # pred = pred.astype(np.int)
-
-        self.label = np.append(self.label, label.numpy())
-        self.pred = np.append(self.pred, pred.numpy())
-
-    def getAccPerCle(self):
-        # print(label, pred)
-        unique, counts = np.unique(self.label, return_counts=True)
-        match = (self.label == self.pred)
-
-        print("ID", unique, "개수", counts)
-        print("정답", self.label)
-        print("예측", self.pred)
-        print('일치', match)
-        for unique_, counts_ in zip(unique, counts):
-            print(f'label: {unique_} '
-                  f'match: {match[self.label==unique_].sum()} '
-                  f'count: {counts_} '
-                  f'accuracy per class: {match[self.label==unique_].sum()/counts_}')
-
-        print(f'accuracy: {match.mean()}')
-
-    def flush(self):
-        self.label = np.array([])
-        self.pred = np.array([])
-
-import torch
-import numpy as np
-
-label_ = torch.randint(4, (10,)).cuda()
-pred_ = torch.randint(4, (10,)).cuda()
-
-accPercls = AccPerCls()
-
-label = np.array([])
-pred = np.array([])
-
-for i in range(1):
-    label = np.append(label, label_.cpu().numpy())
-    pred = np.append(pred, pred_.cpu().numpy())
-    # accPercls.appendLableANDPred(label_.cpu(), pred_.cpu())
-
-# label = label.astype(np.int)
-# pred = pred.astype(np.int)
-
-unique, counts = np.unique(label, return_counts=True)
-print(unique, counts)
-match = (label == pred)
-print(match)
-
-counts_per_class = {unique : f"{match[label == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
-acc_per_class = {unique : match[label==unique].sum()/counts for unique, counts in zip(unique, counts)}
-acc = match.mean()
-print(counts_per_class)
-print(acc_per_class)
-print(acc)
+# class AccPerCls:
+#     def __init__(self):
+#         self.label = np.array([])
+#         self.pred = np.array([])
+#
+#     def appendLableANDPred(self, label, pred):
+#         # label = label.astype(np.int)
+#         # pred = pred.astype(np.int)
+#
+#         self.label = np.append(self.label, label.numpy())
+#         self.pred = np.append(self.pred, pred.numpy())
+#
+#     def getAccPerCle(self):
+#         # print(label, pred)
+#         unique, counts = np.unique(self.label, return_counts=True)
+#         match = (self.label == self.pred)
+#
+#         print("ID", unique, "개수", counts)
+#         print("정답", self.label)
+#         print("예측", self.pred)
+#         print('일치', match)
+#         for unique_, counts_ in zip(unique, counts):
+#             print(f'label: {unique_} '
+#                   f'match: {match[self.label==unique_].sum()} '
+#                   f'count: {counts_} '
+#                   f'accuracy per class: {match[self.label==unique_].sum()/counts_}')
+#
+#         print(f'accuracy: {match.mean()}')
+#
+#     def flush(self):
+#         self.label = np.array([])
+#         self.pred = np.array([])
+#
+# import torch
+# import numpy as np
+#
+# label_ = torch.randint(4, (10,)).cuda()
+# pred_ = torch.randint(4, (10,)).cuda()
+#
+# accPercls = AccPerCls()
+#
+# label = np.array([])
+# pred = np.array([])
+#
+# for i in range(1):
+#     label = np.append(label, label_.cpu().numpy())
+#     pred = np.append(pred, pred_.cpu().numpy())
+#     # accPercls.appendLableANDPred(label_.cpu(), pred_.cpu())
+#
+# # label = label.astype(np.int)
+# # pred = pred.astype(np.int)
+#
+# unique, counts = np.unique(label, return_counts=True)
+# print(unique, counts)
+# match = (label == pred)
+# print(match)
+#
+# counts_per_class = {unique : f"{match[label == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
+# acc_per_class = {unique : match[label==unique].sum()/counts for unique, counts in zip(unique, counts)}
+# acc = match.mean()
+# print(counts_per_class)
+# print(acc_per_class)
+# print(acc)
 
 
 # accPercls.getAccPerCle()
@@ -338,3 +338,40 @@ print(acc)
 # print(dict(zip(unique, counts)))
 #
 # print(unique, counts)
+
+# import torch
+# import torch.nn as nn
+# from torchvision.utils import make_grid
+#
+# input_tensor = torch.rand((32,3,1,1))
+#
+# # model = nn.Sequential(nn.ConvTranspose2d(100, 16, kernel_size=4, stride=2, padding=0, bias=False),
+# #                       nn.ConvTranspose2d(16, 32, kernel_size=4, stride=2, padding=1, bias=False),
+# #                       # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
+# #                       # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
+# #                       )
+# # output_tensor = model(input_tensor)
+# # print(output_tensor.size())
+#
+# print(input_tensor.size())
+# print(make_grid(input_tensor).size())
+#
+import torch
+from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
+
+data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+                                         batch_size=128,
+                                         shuffle=True,
+                                         training=True,
+                                         imb_factor=0.01)
+
+cls_num_list = torch.tensor(data_loader.cls_num_list)
+prior = cls_num_list/ cls_num_list.sum()
+print(torch.log(prior + 1e-9))
+
+value, idx0 = torch.sort(prior)
+_, idx1 = torch.sort(idx0)
+idx2 = prior.shape[0] - 1 - idx1  # reverse the order
+inverse_prior = value.index_select(0, idx2)
+print(torch.log(inverse_prior + 1e-9))
+print(torch.log(prior) - torch.log(inverse_prior))

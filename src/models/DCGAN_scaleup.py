@@ -3,8 +3,9 @@ import torch.nn as nn
 
 # Discriminator
 class Discriminator(nn.Module):
-    def __init__(self, nc, ndf):
+    def __init__(self, nc, ndf, ngpu):
         super(Discriminator, self).__init__()
+        self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
             # nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
@@ -42,15 +43,33 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(in_channels=nz, out_channels=ngf * 4, kernel_size=4, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(ngf * 4),
             nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
+
+            nn.ConvTranspose2d(in_channels=ngf * 4, out_channels=ngf * 4, kernel_size=4, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(ngf * 4),
+            nn.ReLU(True),
+
+
+
+        # state size. (ngf*4) x 8 x 8
             nn.ConvTranspose2d(in_channels=ngf * 4, out_channels=ngf * 2, kernel_size=4, padding=2, stride=1, bias=False),
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
+
+            nn.ConvTranspose2d(in_channels=ngf * 2, out_channels=ngf * 2, kernel_size=4, padding=2, stride=1, bias=False),
+            nn.BatchNorm2d(ngf * 2),
+            nn.ReLU(True),
+
+        # state size. (ngf*2) x 16 x 16
             nn.ConvTranspose2d(in_channels=ngf * 2, out_channels=ngf, kernel_size=4, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(ngf),
             nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
+
+            nn.ConvTranspose2d(in_channels=ngf, out_channels=ngf, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(ngf),
+            nn.ReLU(True),
+
+
+        # state size. (ngf) x 32 x 32
             nn.ConvTranspose2d(in_channels=ngf, out_channels=nc, kernel_size=4, stride=2, padding=1, bias=False),
             nn.Tanh()
             # state size. (nc) x 64 x 64
@@ -68,8 +87,8 @@ if __name__ == '__main__':
     nz = 100
     ngf = 32
 
-    D = Discriminator(nc, ndf)
-    G = Generator(nz, ngf)
+    D = Discriminator(nc, ndf, ngpu=1)
+    G = Generator(nz, ngf, ngpu=1)
 
     batch_size = 64
     img_size = 32
