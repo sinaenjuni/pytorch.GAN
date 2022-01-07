@@ -35,7 +35,7 @@ ndf=32
 image_size = 32
 batch_size = 64
 
-num_epochs = 200 * 10
+num_epochs = 200
 learning_rate = 0.0002
 beta1 = 0.5
 beta2 = 0.999

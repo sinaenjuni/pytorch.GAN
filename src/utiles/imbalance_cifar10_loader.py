@@ -60,6 +60,7 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
             transforms.ToTensor(),
             normalize,
         ])
+        print(train_trsfm)
         test_trsfm = transforms.Compose([
             transforms.ToTensor(),
             normalize,

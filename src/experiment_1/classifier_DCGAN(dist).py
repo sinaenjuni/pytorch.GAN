@@ -1,5 +1,4 @@
 import os
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -38,52 +37,8 @@ ndf=32
 ngpu=1
 
 classes = ["plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
-# Transformation define
-# transform = transforms.Compose([
-#     # transforms.Resize(image_size),
-#     transforms.ToTensor(),
-#     transforms.Normalize(mean=[0.5, 0.5, 0.5],  # 3 for greyscale channels
-#                          std=[0.5, 0.5, 0.5])])
 
 # Dataset define
-
-
-# Dataset modify
-# mnist = MNIST(32)
-# train_dataset = mnist.getTrainDataset()
-# transformed_dataset, count = mnist.getTransformedDataset()
-# test_dataset = mnist.getTestDataset()
-#
-# fig = plt.figure(figsize=(9, 6))
-# sns.barplot(
-#     data=count,
-#     x="class",
-#     y="original"
-# )
-# plt.tight_layout()
-# tb.add_figure(tag='original_data_dist', figure=fig)
-# plt.show()
-#
-# fig = plt.figure(figsize=(9, 6))
-# sns.barplot(
-#     data=count,
-#     x="class",
-#     y="transformed"
-# )
-# plt.tight_layout()
-# tb.add_figure(tag='transformed_data_dist', figure=fig)
-# plt.show()
-
-
-# Data loader
-# train_data_loader = torch.utils.data.DataLoader(dataset=transformed_dataset,
-#                                           batch_size=batch_size,
-#                                           shuffle=True)
-#
-# test_data_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-#                                                batch_size=batch_size,
-#                                                shuffle=False)
-
 train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                                batch_size=batch_size,
                                                shuffle=True,
@@ -97,6 +52,31 @@ test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                               imb_factor=0.01)
 print(len(train_data_loader.dataset))
 print(len(test_data_loader.dataset))
+
+class_to_index = train_data_loader.dataset.class_to_idx
+num_per_cls_dict = train_data_loader.dataset.num_per_cls_dict
+class_name_and_counts = {name[0]: counts[1] for name, counts in zip(class_to_index.items(),
+                                                                    num_per_cls_dict.items())}
+print(class_to_index)
+print(num_per_cls_dict)
+print(class_name_and_counts)
+
+num_per_cls_dict = pd.DataFrame(list(class_name_and_counts.items()),
+                                columns=['name', 'counts'])
+
+print(num_per_cls_dict)
+
+fig = plt.figure(figsize=(9, 6))
+sns.barplot(
+    data=num_per_cls_dict,
+    x="name",
+    y="counts"
+)
+plt.tight_layout()
+# tb.add_figure(tag='original_data_dist', figure=fig)
+plt.show()
+
+
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -161,23 +141,44 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,
 
 # Start training
 num_train_step = len(train_data_loader)
-num_train = len(train_data_loader.dataset)
-
 num_test_step = len(test_data_loader)
-num_test = len(test_data_loader.dataset)
-best_loss = float("inf")
+
+num_train_dataset = len(train_data_loader.dataset)
+num_test_dataset = len(test_data_loader.dataset)
+
+log = {}
+log["epoch"] = 0
+log["loss_train"] = 0
+log["loss_test"] = 0
+log["acc_train"] = 0
+log["acc_test"] = 0
+log["best_loss_train"] = float("inf")
+log["best_loss_train_epoch"] = 0
+log["best_loss_test"] = float("inf")
+log["best_loss_test_epoch"] = 0
+log["best_acc_train"] = 0
+log["best_acc_train_epoch"] = 0
+log["best_acc_test"] = 0
+log["best_acc_test_epoch"] = 0
+
+
+
 
 for epoch in range(num_epochs):
     labels_train = np.array([])
     preds_train = np.array([])
     loss_train = np.array([])
 
+    log["epoch"] = epoch + 1
+
     for i, (images, labels) in enumerate(train_data_loader):
+
         model.train()
         images = images.to(device)
         labels = labels.to(device)
 
         preds = model(images).to(device)
+
         optimizer.zero_grad()
         loss = criterion(preds, labels)
         loss.backward()
@@ -188,14 +189,6 @@ for epoch in range(num_epochs):
         labels_train = np.append(labels_train, labels.cpu().numpy())
         preds_train = np.append(preds_train, preds.cpu().numpy())
         loss_train = np.append(loss_train, loss.item())
-
-        if (i+1) == 100:
-            print('Epoch [{}/{}], Step [{}/{}], loss: {:.4f}, acc: {:.4f}'
-                  .format(epoch + 1, num_epochs,
-                          i + 1, num_train_step,
-                          loss_train.mean(),
-                          (labels_train == preds_train).mean()))
-
 
     with torch.no_grad():
         model.eval()
@@ -209,19 +202,50 @@ for epoch in range(num_epochs):
 
             preds = model(images).to(device)
             loss = criterion(preds, labels)
-            loss_test = np.append(loss_test, loss.item())
 
             preds = preds.argmax(-1)
+
+            loss_test = np.append(loss_test, loss.item())
             labels_test = np.append(labels_test, labels.cpu().numpy())
             preds_test = np.append(preds_test, preds.cpu().numpy())
 
-        unique, counts = np.unique(labels_test, return_counts=True)
-        match = (labels_test == preds_test)
+    log["loss_train"] = loss_train.mean()
+    log["acc_train"] = (labels_train == preds_train).mean()
 
-        counts_per_class = {str(unique): f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
-        acc_per_class =    {str(unique): match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
-        acc = match.mean()
+    log["loss_test"] = loss_test.mean()
+    log["acc_test"] = (labels_test == preds_test).mean()
 
+    if log["best_loss_train"] > log["loss_train"]:
+        log["best_loss_train"] = log["loss_train"]
+        log["best_loss_train_epoch"] = log["epoch"]
+    if log["best_loss_test"] > log["loss_test"]:
+        log["best_loss_test"] = log["loss_test"]
+        log["best_loss_test_epoch"] = log["epoch"]
+
+    if log["best_acc_train"] < log["acc_train"]:
+        log["best_acc_train"] = log["acc_train"]
+        log["best_acc_train_epoch"] = log["epoch"]
+    if log["best_acc_test"] < log["acc_test"]:
+        log["best_acc_test"] = log["acc_test"]
+        log["best_acc_test_epoch"] = log["epoch"]
+
+            # print(f'Epoch:       {epoch + 1}/{num_epochs}     \n'
+            #       f'Step:        {i + 1}/{num_train_dataset}  \n'
+            #       f'loss_train:  {loss_train.mean():.4f}      \n'
+            #       f'acc_train:   {acc_train.mean():.4f}       \n')
+
+    unique, counts = np.unique(labels_test, return_counts=True)
+    match = (labels_test == preds_test)
+
+    counts_per_class = {str(unique): f"{match[labels_test == unique].sum()}/{counts}" for unique, counts in zip(unique, counts)}
+    acc_per_class =    {str(unique): match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
+    acc = match.mean()
+
+    for key, val in log.items():
+        if any(keyword in key for keyword in ['epoch', 'step']):
+            print(f"{key:<30}:{val:>10}")
+        else:
+            print(f"{key:<30}:{val:>10.4f}")
 
         # print(counts_per_class)
         # print(acc_per_class)
@@ -249,13 +273,13 @@ for epoch in range(num_epochs):
                    tag_scalar_dict={'train': (labels_train == preds_train).mean(),
                                      'test': (labels_test == preds_test).mean()})
 
-    tb.add_text(global_step=epoch+1,
-                   tag='counts_per_class',
-                   text_string=str(counts_per_class))
-
-    tb.add_text(global_step=epoch + 1,
-                tag='acc_per_class',
-                text_string=str(acc_per_class))
+    # tb.add_text(global_step=epoch+1,
+    #                tag='counts_per_class',
+    #                text_string=str(counts_per_class))
+    #
+    # tb.add_text(global_step=epoch + 1,
+    #             tag='acc_per_class',
+    #             text_string=str(acc_per_class))
 
     arr = confusion_matrix(labels_test, preds_test)
     class_names = [i for i in classes]
