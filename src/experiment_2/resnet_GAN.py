@@ -196,12 +196,12 @@ for epoch in range(num_epochs):
 
 
     # Save the model checkpoints
-    # SAVE_PATH = f'../../weights/{name}/'
-    # if not os.path.exists(SAVE_PATH):
-    #     os.makedirs(SAVE_PATH)
-    # torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
-    # torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')
-    #
+    SAVE_PATH = f'../../weights/{name}/'
+    if not os.path.exists(SAVE_PATH):
+        os.makedirs(SAVE_PATH)
+    torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
+    torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')
+
 
 
 
