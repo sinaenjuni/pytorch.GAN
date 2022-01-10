@@ -241,6 +241,7 @@ for epoch in range(num_epochs):
     acc_per_class =    {str(unique): match[labels_test == unique].sum() / counts for unique, counts in zip(unique, counts)}
     acc = match.mean()
 
+    print("==================================================")
     for key, val in log.items():
         if any(keyword in key for keyword in ['epoch', 'step']):
             print(f"{key:<30}:{val:>10}")

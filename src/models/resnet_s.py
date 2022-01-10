@@ -85,10 +85,10 @@ class BasicBlock(nn.Module):
                 )
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
+        out = F.relu(self.bn1(self.conv1(x)), inplace=True)
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
-        out = F.relu(out, inplace=True, negative_slope=0.2)
+        out = F.relu(out, inplace=True)
         return out
 
 
@@ -149,7 +149,7 @@ class ResNet_s(nn.Module):
             print("Warning: detected at least one frozen BN, set them to eval state. Count:", count)
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
+        out = F.relu(self.bn1(self.conv1(x)), inplace=True)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)

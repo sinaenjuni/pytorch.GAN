@@ -339,39 +339,39 @@ import torch.nn.functional as F
 #
 # print(unique, counts)
 
-# import torch
-# import torch.nn as nn
-# from torchvision.utils import make_grid
-#
-# input_tensor = torch.rand((32,3,1,1))
-#
-# # model = nn.Sequential(nn.ConvTranspose2d(100, 16, kernel_size=4, stride=2, padding=0, bias=False),
-# #                       nn.ConvTranspose2d(16, 32, kernel_size=4, stride=2, padding=1, bias=False),
-# #                       # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
-# #                       # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
-# #                       )
-# # output_tensor = model(input_tensor)
-# # print(output_tensor.size())
-#
-# print(input_tensor.size())
-# print(make_grid(input_tensor).size())
-#
 import torch
-from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
+import torch.nn as nn
+from torchvision.utils import make_grid
 
-data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
-                                         batch_size=128,
-                                         shuffle=True,
-                                         training=True,
-                                         imb_factor=0.01)
+input_tensor = torch.rand((32,100,1,1))
 
-cls_num_list = torch.tensor(data_loader.cls_num_list)
-prior = cls_num_list/ cls_num_list.sum()
-print(torch.log(prior + 1e-9))
+model = nn.Sequential(nn.ConvTranspose2d(100, 16, kernel_size=4, stride=2, padding=0, bias=False),
+                      # nn.ConvTranspose2d(16, 32, kernel_size=4, stride=2, padding=1, bias=False),
+                      # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
+                      # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
+                      )
+output_tensor = model(input_tensor)
+print(output_tensor.size())
 
-value, idx0 = torch.sort(prior)
-_, idx1 = torch.sort(idx0)
-idx2 = prior.shape[0] - 1 - idx1  # reverse the order
-inverse_prior = value.index_select(0, idx2)
-print(torch.log(inverse_prior + 1e-9))
-print(torch.log(prior) - torch.log(inverse_prior))
+print(input_tensor.size())
+print(make_grid(input_tensor).size())
+
+# import torch
+# from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
+#
+# data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+#                                          batch_size=128,
+#                                          shuffle=True,
+#                                          training=True,
+#                                          imb_factor=0.01)
+#
+# cls_num_list = torch.tensor(data_loader.cls_num_list)
+# prior = cls_num_list/ cls_num_list.sum()
+# print(torch.log(prior + 1e-9))
+#
+# value, idx0 = torch.sort(prior)
+# _, idx1 = torch.sort(idx0)
+# idx2 = prior.shape[0] - 1 - idx1  # reverse the order
+# inverse_prior = value.index_select(0, idx2)
+# print(torch.log(inverse_prior + 1e-9))
+# print(torch.log(prior) - torch.log(inverse_prior))

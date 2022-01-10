@@ -13,11 +13,13 @@ from sklearn.metrics import confusion_matrix
 import pandas as pd
 import seaborn as sns
 
+from torchsummaryX import summary
+
 from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 from models.resnet_s_D import resnet32
-from models.DCGAN_scaleup import Generator
+import models.DCGAN_scaleup as Generator
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -26,7 +28,7 @@ print('device:', device)
 
 
 # Define hyper-parameters
-name = 'experiments/resnet_D/cifar10_dist/test1'
+name = 'experiments2/Resnet_s/GAN'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
@@ -34,7 +36,7 @@ num_epochs = 200
 batch_size = 128
 imb_factor = 0.01
 
-learning_rate = 0.1
+learning_rate = 0.0002
 weight_decay = 5e-4
 momentum = 0.9
 nesterov = True
@@ -77,8 +79,13 @@ cls_num_list = train_data_loader.cls_num_list
 
 
 # Define model
-G = Generator(nz, nc, ngf).to(device)
+G = Generator.generator().to(device)
 D = resnet32(num_classes=10, use_norm=True).to(device)
+# D.linear = nn.Linear()
+# print(D)
+
+summary(G, torch.rand(32, 100, 1, 1).to(device))
+summary(D, torch.rand(32, 3, 32, 32).to(device))
 
 
 
