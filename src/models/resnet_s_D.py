@@ -120,6 +120,12 @@ class ResNet_s(nn.Module):
         self.layer2 = self._make_layer(block, layer2_output_dim, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, layer3_output_dim, num_blocks[2], stride=2)
 
+        self.last = nn.Sequential(nn.Conv2d(layer3_output_dim, layer3_output_dim, kernel_size=3, padding=1, stride=2),
+                                  nn.BatchNorm2d(layer3_output_dim),
+                                  nn.LeakyReLU(0.2, True),
+                                  nn.Conv2d(layer3_output_dim, 1, kernel_size=3, padding=0, stride=2),
+                                  )
+
         if use_norm:
             self.linear = NormedLinear(layer3_output_dim, num_classes)
         else:
@@ -156,6 +162,7 @@ class ResNet_s(nn.Module):
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
+        out = self.last(out)
         # self.feat_before_GAP = out
         # out = F.avg_pool2d(out, out.size()[3])
         # out = out.view(out.size(0), -1)
@@ -190,14 +197,14 @@ def resnet1202():
     return ResNet_s(BasicBlock, [200, 200, 200])
 
 
-def test(net):
-    import numpy as np
-    total_params = 0
-
-    for x in filter(lambda p: p.requires_grad, net.parameters()):
-        total_params += np.prod(x.data.numpy().shape)
-    print("Total number of params", total_params)
-    print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
+# def test(net):
+#     import numpy as np
+#     total_params = 0
+#
+#     for x in filter(lambda p: p.requires_grad, net.parameters()):
+#         total_params += np.prod(x.data.numpy().shape)
+#     print("Total number of params", total_params)
+#     print("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
 
 
 # if __name__ == "__main__":

@@ -43,13 +43,20 @@ nesterov = True
 
 nz = 100
 nc = 3
-ngf = 32
+ngf = 64
 beta1 = 0.5
 beta2 = 0.999
 
 fixed_noise = torch.randn((100, nz, 1, 1)).to(device)
 
 
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 # Define Tensorboard
 tb = getTensorboard(tensorboard_path)
@@ -77,12 +84,44 @@ print(train_data_loader.cls_num_list)
 cls_num_list = train_data_loader.cls_num_list
 
 
+# # Generator
+# class Generator(nn.Module):
+#     def __init__(self):
+#         super(Generator, self).__init__()
+#         self.main = nn.Sequential(
+#             # input is Z, going into a convolution
+#             # nn.ConvTranspose2d(nz, ngf * 8, 4, 1, 0, bias=False),
+#             # nn.BatchNorm2d(ngf * 8),
+#             # nn.ReLU(True),
+#             # state size. (ngf*8) x 4 x 4
+#             nn.ConvTranspose2d(nz, ngf * 4, 4, 1, 0, bias=False),
+#             nn.BatchNorm2d(ngf * 4),
+#             nn.ReLU(True),
+#             # state size. (ngf*4) x 8 x 8
+#             nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
+#             nn.BatchNorm2d(ngf * 2),
+#             nn.ReLU(True),
+#             # state size. (ngf*2) x 16 x 16
+#             nn.ConvTranspose2d(ngf * 2, ngf, 4, 2, 1, bias=False),
+#             nn.BatchNorm2d(ngf),
+#             nn.ReLU(True),
+#             # state size. (ngf) x 32 x 32
+#             nn.ConvTranspose2d(ngf, nc, 4, 2, 1, bias=False),
+#             nn.Tanh()
+#             # state size. (nc) x 64 x 64
+#         )
+#     def forward(self, input):
+#         return self.main(input)
+
 
 # Define model
 G = Generator.generator().to(device)
+# G = Generator().to(device)
 D = resnet32(num_classes=10, use_norm=True).to(device)
-# D.linear = nn.Linear()
-# print(D)
+
+G.apply(weights_init)
+D.apply(weights_init)
+
 
 summary(G, torch.rand(32, 100, 1, 1).to(device))
 summary(D, torch.rand(32, 3, 32, 32).to(device))
@@ -111,29 +150,30 @@ for epoch in range(num_epochs):
         # ================================================================== #
         #                      Train the discriminator                       #
         # ================================================================== #
-        d_optimizer.zero_grad()
+        if i % 5 == 0:
+            d_optimizer.zero_grad()
 
-        outputs = D(images).view(batch, -1)
-        # d_loss_real = criterion(outputs, real_labels)
-        loss_D_real = F.relu(1.-outputs).mean()
-        score_D_real = outputs.mean().item()
+            outputs = D(images).view(batch, -1)
+            # d_loss_real = criterion(outputs, real_labels)
+            loss_D_real = F.relu(1.-outputs).mean()
+            score_D_real = outputs.mean().item()
 
-        # Compute BCELoss using fake images
-        # First term of the loss is always zero since fake_labels == 0
-        # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
-        z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
-        fake_images = G(z)
+            # Compute BCELoss using fake images
+            # First term of the loss is always zero since fake_labels == 0
+            # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
+            z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
+            fake_images = G(z)
 
-        outputs = D(fake_images.detach()).view(batch, -1)
-        # d_loss_fake = criterion(outputs, fake_labels)
-        loss_D_fake = F.relu(1.+outputs).mean()
-        score_D_fake = outputs.mean().item()
+            outputs = D(fake_images.detach()).view(batch, -1)
+            # d_loss_fake = criterion(outputs, fake_labels)
+            loss_D_fake = F.relu(1.+outputs).mean()
+            score_D_fake = outputs.mean().item()
 
-        # Backprop and optimize
-        d_loss = loss_D_real + loss_D_fake
-        # reset_grad()
-        d_loss.backward()
-        d_optimizer.step()
+            # Backprop and optimize
+            d_loss = loss_D_real + loss_D_fake
+            # reset_grad()
+            d_loss.backward()
+            d_optimizer.step()
 
         # ================================================================== #
         #                        Train the generator                         #
@@ -142,7 +182,7 @@ for epoch in range(num_epochs):
         g_optimizer.zero_grad()
 
         # Compute loss with fake images
-        # z = torch.randn(batch_size, latent_size).to(device)
+        z = torch.randn(batch, nz, 1, 1).to(device)
         fake_images = G(z)
         outputs = D(fake_images).view(batch, -1)
         g_loss = -outputs.mean()
@@ -184,10 +224,14 @@ for epoch in range(num_epochs):
     # tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
     # tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
 
-    result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
-    tb.add_image(tag='gened_images',
-                  global_step=epoch+1,
-                  img_tensor=result_images)
+    with torch.no_grad():
+        result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
+        plt.imshow(result_images.permute(1,2,0).numpy())
+        plt.tight_layout()
+        plt.show()
+        tb.add_image(tag='gened_images',
+                      global_step=epoch+1,
+                      img_tensor=result_images)
 
 
     # Save sampled images

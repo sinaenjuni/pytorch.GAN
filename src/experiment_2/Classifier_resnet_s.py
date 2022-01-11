@@ -19,11 +19,11 @@ from models.resnet_s import resnet32
 
 
 # Define hyper-parameters
-name = 'experiments2/Resnet_s/GAN'
+name = 'experiments2/Resnet_s/classifier'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
-num_epochs = 800
+num_epochs = 200
 batch_size = 128
 imb_factor = 0.01
 
@@ -67,6 +67,8 @@ cls_num_list = train_data_loader.cls_num_list
 model = resnet32(num_classes=10, use_norm=True).to(device)
 print(model)
 
+SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
+model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 # Define optimizer
 # optimizer = torch.optim.Adam(model.parameters(),
@@ -108,82 +110,82 @@ def lr_lambda(epoch):
 lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
 # Training model
-# for epoch in range(num_epochs):
-#     train_loss = 0.0
-#     train_accuracy = 0.0
-#     test_loss = 0.0
-#     test_accuracy = 0.0
-#
-#     for train_idx, data in enumerate(train_data_loader):
-#         img, target = data
-#         img, target = img.to(device), target.to(device)
-#         batch = img.size(0)
-#
-#         optimizer.zero_grad()
-#
-#         model.train()
-#         pred = model(img)
-#
-#         loss = F.cross_entropy(pred, target)
-#         loss.backward()
-#         optimizer.step()
-#
-#
-#         train_loss += loss.item()
-#         pred = pred.argmax(-1)
-#         train_accuracy += torch.sum(pred == target).item()
-#         # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
-#
-#     model.eval()
-#     with torch.no_grad():
-#         for test_idx, data in enumerate(test_data_loader):
-#             img, target = data
-#             img, target = img.to(device), target.to(device)
-#             batch = img.size(0)
-#
-#             pred = model(img)
-#             loss = F.cross_entropy(pred, target)
-#             test_loss += loss.item()
-#
-#             pred = pred.argmax(-1)
-#             test_accuracy += torch.sum(pred == target).item()
-#
-#     # print('train_loss', train_loss)
-#     # print('train_len', len(train_data_loader))
-#     # print('test_loss', test_loss)
-#     # print('len', len(test_data_loader))
-#
-#     train_loss = train_loss/len(train_data_loader)
-#     test_loss = test_loss/len(test_data_loader)
-#     train_accuracy = train_accuracy/len(train_data_loader.dataset)
-#     test_accuracy = test_accuracy/len(test_data_loader.dataset)
-#
-#     print(len(train_data_loader))
-#     print(len(train_data_loader.dataset))
-#
-#     if train_best_accuracy < train_accuracy:
-#         train_best_accuracy = train_accuracy
-#         train_best_accuracy_epoch = epoch
-#     if test_best_accuracy < test_accuracy:
-#         test_best_accuracy = test_accuracy
-#         test_best_accuracy_epoch = epoch
-#
-#
-#     print(f"epochs: {epoch}, \n"
-#           f"train_loss: {train_loss:.4}, \n"
-#           f"train_acc: {train_accuracy:.4}, \n"
-#           f"test_loss: {test_loss:.4}, \n"
-#           f"test_acc: {test_accuracy:.4}, \n"
-#           f"train_best_acc: {train_best_accuracy:.4} ({train_best_accuracy_epoch}), \n"
-#           f"test_best_acc: {test_best_accuracy:.4} ({test_best_accuracy_epoch})")
-#
-#     print(max([param_group['lr'] for param_group in optimizer.param_groups]),
-#                 min([param_group['lr'] for param_group in optimizer.param_groups]))
-#     lr_scheduler.step()
-#
-#
-#
-#
+for epoch in range(num_epochs):
+    train_loss = 0.0
+    train_accuracy = 0.0
+    test_loss = 0.0
+    test_accuracy = 0.0
+
+    for train_idx, data in enumerate(train_data_loader):
+        img, target = data
+        img, target = img.to(device), target.to(device)
+        batch = img.size(0)
+
+        optimizer.zero_grad()
+
+        model.train()
+        pred = model(img)
+
+        loss = F.cross_entropy(pred, target)
+        loss.backward()
+        optimizer.step()
+
+
+        train_loss += loss.item()
+        pred = pred.argmax(-1)
+        train_accuracy += torch.sum(pred == target).item()
+        # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
+
+    model.eval()
+    with torch.no_grad():
+        for test_idx, data in enumerate(test_data_loader):
+            img, target = data
+            img, target = img.to(device), target.to(device)
+            batch = img.size(0)
+
+            pred = model(img)
+            loss = F.cross_entropy(pred, target)
+            test_loss += loss.item()
+
+            pred = pred.argmax(-1)
+            test_accuracy += torch.sum(pred == target).item()
+
+    # print('train_loss', train_loss)
+    # print('train_len', len(train_data_loader))
+    # print('test_loss', test_loss)
+    # print('len', len(test_data_loader))
+
+    train_loss = train_loss/len(train_data_loader)
+    test_loss = test_loss/len(test_data_loader)
+    train_accuracy = train_accuracy/len(train_data_loader.dataset)
+    test_accuracy = test_accuracy/len(test_data_loader.dataset)
+
+    print(len(train_data_loader))
+    print(len(train_data_loader.dataset))
+
+    if train_best_accuracy < train_accuracy:
+        train_best_accuracy = train_accuracy
+        train_best_accuracy_epoch = epoch
+    if test_best_accuracy < test_accuracy:
+        test_best_accuracy = test_accuracy
+        test_best_accuracy_epoch = epoch
+
+
+    print(f"epochs: {epoch}, \n"
+          f"train_loss: {train_loss:.4}, \n"
+          f"train_acc: {train_accuracy:.4}, \n"
+          f"test_loss: {test_loss:.4}, \n"
+          f"test_acc: {test_accuracy:.4}, \n"
+          f"train_best_acc: {train_best_accuracy:.4} ({train_best_accuracy_epoch}), \n"
+          f"test_best_acc: {test_best_accuracy:.4} ({test_best_accuracy_epoch})")
+
+    print(max([param_group['lr'] for param_group in optimizer.param_groups]),
+                min([param_group['lr'] for param_group in optimizer.param_groups]))
+    lr_scheduler.step()
+
+
+
+
 #
 #
 #

@@ -287,10 +287,18 @@ for epoch in range(num_epochs):
 
     # result_images = denorm(G(fixed_noise))
     # print(result_images.size())
-    result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
-    tb.add_image(tag='gened_images',
-                  global_step=epoch+1,
-                  img_tensor=result_images)
+    # result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
+    # tb.add_image(tag='gened_images',
+    #               global_step=epoch+1,
+    #               img_tensor=result_images)
+    with torch.no_grad():
+        result_images = make_grid(G(fixed_noise).cpu(), padding=0, nrow=10, normalize=True)
+        plt.imshow(result_images.permute(1,2,0).numpy())
+        plt.tight_layout()
+        plt.show()
+        tb.add_image(tag='gened_images',
+                      global_step=epoch+1,
+                      img_tensor=result_images)
 
     # Save sampled images
     # fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)

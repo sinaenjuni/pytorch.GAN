@@ -94,10 +94,10 @@ class BasicBlock(nn.Module):
                 )
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)), inplace=True, )
+        out = F.leaky_relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
-        out = F.relu(out, inplace=True)
+        out = F.leaky_relu(out, inplace=True, negative_slope=0.2)
         return out
 
 
@@ -105,21 +105,21 @@ class Generator(nn.Module):
     def __init__(self, block, num_blocks, reduce_dimension=False, layer2_output_dim=None,
                  layer3_output_dim=None, s=30):
         super(Generator, self).__init__()
-        self.in_planes = 16
+        self.in_planes = 256
 
-        self.conv1 = nn.ConvTranspose2d(100, 16, kernel_size=4, stride=2, padding=0, bias=False)  # 4
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
+        self.conv1 = nn.ConvTranspose2d(100, 256, kernel_size=4, stride=2, padding=0, bias=False)  # 4
+        self.bn1 = nn.BatchNorm2d(256)
+        self.layer1 = self._make_layer(block, 256, num_blocks[0], stride=1)
 
         if layer2_output_dim is None:
             if reduce_dimension:
-                layer2_output_dim = 24
+                layer2_output_dim = 48
             else:
-                layer2_output_dim = 32
+                layer2_output_dim = 128
 
         if layer3_output_dim is None:
             if reduce_dimension:
-                layer3_output_dim = 48
+                layer3_output_dim = 24
             else:
                 layer3_output_dim = 64
 
@@ -128,7 +128,7 @@ class Generator(nn.Module):
 
         self.last = nn.Sequential(nn.ConvTranspose2d(layer3_output_dim, layer3_output_dim, kernel_size=4, stride=2, padding=1, bias=False),
                                   nn.BatchNorm2d(layer3_output_dim),
-                                  nn.ReLU(inplace=True),
+                                  nn.LeakyReLU(inplace=True, negative_slope=0.2),
                                   nn.Conv2d(layer3_output_dim, 3, kernel_size=3, stride=1, padding=1),
                                   nn.Tanh())
 
@@ -164,7 +164,7 @@ class Generator(nn.Module):
             print("Warning: detected at least one frozen BN, set them to eval state. Count:", count)
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        out = F.leaky_relu(self.bn1(self.conv1(x)), inplace=True, negative_slope=0.2)
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
@@ -196,12 +196,13 @@ class Generator(nn.Module):
 #             print()
 
 def generator():
-    return Generator(BasicBlock, [4, 4, 4], reduce_dimension=False)
+    return Generator(BasicBlock, [3, 3, 3], reduce_dimension=False)
 
 if __name__ == "__main__":
     from torchsummaryX import summary
 
-    model = Generator(BasicBlock, [5, 5, 5], reduce_dimension=True)
+    # model = Generator(BasicBlock, [5, 5, 5], reduce_dimension=False)
+    model = generator()
     # rest32 = resnet32(10, True)
 
     summary(model, torch.zeros((32, 100, 1, 1)))
