@@ -166,8 +166,8 @@ if __name__ == "__main__":
 
 
     # Define models
-    G = Generator(nc = 1, nf=24).to(device)
-    D = Discriminator(nc = 1, nf=32, num_classes=10).to(device)
+    G = Generator(nc = 1, nf=12).to(device)
+    D = Discriminator(nc = 1, nf=16, num_classes=10).to(device)
     G.apply(weights_init)
     D.apply(weights_init)
     # print(G)
