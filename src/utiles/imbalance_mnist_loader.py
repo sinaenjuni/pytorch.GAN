@@ -6,7 +6,7 @@ import os, sys
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset, Sampler
 from PIL import Image
-from imbalance_mnist import IMBALANCEMNIST
+from .imbalance_mnist import IMBALANCEMNIST
 
 
 class BalancedSampler(Sampler):
@@ -54,9 +54,10 @@ class ImbalanceMNISTDataLoader(DataLoader):
         normalize = transforms.Normalize(mean=[0.5],
                                          std=[0.5])
         train_trsfm = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
+            # transforms.RandomCrop(32, padding=4),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomRotation(15),
+            transforms.Resize(32),
             transforms.ToTensor(),
             normalize,
         ])
@@ -118,29 +119,37 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from torchvision.utils import make_grid
 
+    normalize = transforms.Normalize(mean=[0.5],
+                                     std=[0.5])
+    train_trsfm = transforms.Compose([
+        # transforms.RandomCrop(32, padding=4),
+        # transforms.RandomHorizontalFlip(),
+        # transforms.RandomRotation(15),
+        transforms.ToTensor(),
+        normalize,
+    ])
+
     loader = ImbalanceMNISTDataLoader(data_dir='../../data', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
                                         imb_factor=0.01)
-    print(len(loader))
-
 
     for idx, data in enumerate(loader):
         img, label = data
         print(img)
 
-        # if idx == 0:
-        #     print(img)
-        # else:
-        #     break
-        # if idx == 1:
-        #     break
-        # else:
-        #     print(img.size())
-            # grid = make_grid(img, normalize=True)
-            # print(grid.size())
+        if idx == 0:
+            print(img)
+        else:
+            break
+        if idx == 1:
+            break
+        else:
+            print(img.size())
+            grid = make_grid(img, normalize=True)
+            print(grid.size())
             # grid = (grid + 1) / 2
             # grid.clamp(0, 1)
-            # print(grid.size())
-            # plt.imshow(grid.permute(1,2,0))
-            # plt.show()
-            # print(idx, data[1])
+            print(grid.size())
+            plt.imshow(grid.permute(1,2,0))
+            plt.show()
+            print(idx, data[1])

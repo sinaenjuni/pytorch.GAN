@@ -52,8 +52,8 @@ class IMBALANCEMNIST(torchvision.datasets.MNIST):
             new_data.append(self.data[selec_idx, ...])
             new_targets.extend([the_class, ] * the_img_num)
         new_data = np.vstack(new_data)
-        self.data = new_data
-        self.targets = new_targets
+        self.data = torch.tensor(new_data)
+        self.targets = torch.tensor(new_targets)
 
     def get_cls_num_list(self):
         cls_num_list = []
@@ -63,9 +63,11 @@ class IMBALANCEMNIST(torchvision.datasets.MNIST):
 
 
 if __name__ == '__main__':
+    from PIL import Image
+
     transform = transforms.Compose(
         [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+         transforms.Normalize((0.5), (0.5))])
 
     train_dataset = IMBALANCEMNIST(root='../../data', train=True, imb_factor=0.01,
                                    download=True, transform=transform)
@@ -74,11 +76,19 @@ if __name__ == '__main__':
                                               download=True, transform=transform)
 
 
-    import numpy as np
-    train_labels = train_dataset.train_labels
-    train_labels = np.array(train_labels)
-    for i in np.unique(train_labels):
-        print(i, len(train_labels[train_labels == i]))
+
+    # print(type(test_dataset.data))
+    # print(train_dataset.data.shape)
+    # images = Image.fromarray(train_dataset.data[0].numpy(), mode='L')
+    # print(images)
+    # print(train_dataset[0])
+
+
+    # import numpy as np
+    # train_labels = train_dataset.train_labels
+    # train_labels = np.array(train_labels)
+    # for i in np.unique(train_labels):
+    #     print(i, len(train_labels[train_labels == i]))
 
     # print(len(torchvision.datasets.MNIST(root='../../data', train=True, download=True)))
 
