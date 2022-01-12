@@ -1,18 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="sin@168.188.125.197:22 password" exclude=".svn;.cvs;.idea;.DS_Store;.git;.hg;*.hprof;*.pyc;*.png;data;tb_logs" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="sin@168.188.125.197:22" exclude=".svn;.cvs;.idea;.DS_Store;.git;.hg;*.hprof;*.pyc;*.png;data;tb_logs" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="sin@168.188.125.197:22 password">
+      <paths name="sin@168.188.125.197:22">
         <serverdata>
           <mappings>
             <mapping deploy="/home/sin/git/pytorch.GAN" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="sin@220.81.198.160:222 password">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/home/sin/git/pytorch.gan" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
