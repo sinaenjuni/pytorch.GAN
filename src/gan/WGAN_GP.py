@@ -135,7 +135,6 @@ for i in range(start_iters, max_iters):
     real_img = real_img_ori.reshape(-1, image_size).to(device)
 
     latent_input = getLatentVector(batch_size).to(device)
-
     ###
     # Train Discriminator (Optimizer Discriminator)
     ###ㅎ
@@ -144,7 +143,7 @@ for i in range(start_iters, max_iters):
     real_score = real_outputs
 
     fake_img = G(latent_input)
-    fake_outputs = D(fake_img)
+    fake_outputs = D(fake_img.detach())
     fake_score = fake_outputs
 
     gradient_penalty = compute_gradient_penalty(D, real_img_ori.data, fake_img.data)
@@ -154,9 +153,7 @@ for i in range(start_iters, max_iters):
     d_loss.backward()
     d_optimizer.step()
 
-
     if i % n_critic == 0:
-
         ###
         # Train Generator (Optimizer Generator)
         ###
@@ -176,9 +173,10 @@ for i in range(start_iters, max_iters):
                       d_loss.item(), g_loss.item(),
                       real_score.mean().item(), fake_score.mean().item()))
 
-        generated_img = fake_img.reshape(batch_size, 1, 28, 28).cpu()
+
+        generated_img = fake_img.reshape(batch_size, 1, 28, 28).detach().cpu()
         grid = make_grid(denorm(generated_img))
-        plt.imshow(grid.permute(1,2,0))
+        plt.imshow(grid.permute(1,2,0).numpy())
         plt.show()
 
 

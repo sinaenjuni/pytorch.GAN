@@ -196,7 +196,7 @@ class Generator(nn.Module):
 #             print()
 
 def generator():
-    return Generator(BasicBlock, [3, 3, 3], reduce_dimension=False)
+    return Generator(BasicBlock, [2, 2, 2], reduce_dimension=False)
 
 if __name__ == "__main__":
     from torchsummaryX import summary

@@ -114,7 +114,7 @@ for i in range(start_iters, max_iters):
 
     ###
     # Train Discriminator (Optimizer Discriminator)
-    ###ㅎ
+    ###
 
     real_outputs = D(real_img)
     real_score = real_outputs
