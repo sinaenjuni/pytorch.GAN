@@ -15,11 +15,11 @@ import seaborn as sns
 from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
-from models.resnet_s import resnet32
-
+from models.expert_resnet_cifar import resnet32
+from loss import DiverseExpertLoss
 
 # Define hyper-parameters
-name = 'experiments2/Resnet_s/classifier'
+name = 'experiments3/Resnet_s/classifier'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
@@ -31,6 +31,8 @@ learning_rate = 0.1
 weight_decay = 5e-4
 momentum = 0.9
 nesterov = True
+
+return_feature = True
 
 
 
@@ -67,8 +69,11 @@ cls_num_list = train_data_loader.cls_num_list
 model = resnet32(num_classes=10, use_norm=True).to(device)
 print(model)
 
+criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4)
+
 # SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
 # model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+
 
 # Define optimizer
 # optimizer = torch.optim.Adam(model.parameters(),
@@ -124,15 +129,23 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
 
         model.train()
-        pred = model(img)
+        extra_info = {}
+        output = model(img)
 
-        loss = F.cross_entropy(pred, target)
+        logits = output["logits"]
+        extra_info.update({
+            "logits": logits.transpose(0, 1)
+        })
+
+        output = output["output"]
+        loss = criterion(output_logits=output, target=target, extra_info=extra_info)
+        # loss = F.cross_entropy(pred, target)
         loss.backward()
         optimizer.step()
 
 
         train_loss += loss.item()
-        pred = pred.argmax(-1)
+        pred = output.argmax(dim=1)
         train_accuracy += torch.sum(pred == target).item()
         # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
 
@@ -143,11 +156,18 @@ for epoch in range(num_epochs):
             img, target = img.to(device), target.to(device)
             batch = img.size(0)
 
-            pred = model(img)
-            loss = F.cross_entropy(pred, target)
+            output = model(img)
+            logits = output["logits"]
+            extra_info.update({
+                "logits": logits.transpose(0, 1)
+            })
+            output = output["output"]
+
+            loss = criterion(output_logits=output, target=target, extra_info=extra_info)
+            # loss = F.cross_entropy(pred, target)
             test_loss += loss.item()
 
-            pred = pred.argmax(-1)
+            pred = output.argmax(-1)
             test_accuracy += torch.sum(pred == target).item()
 
     # print('train_loss', train_loss)
@@ -182,13 +202,6 @@ for epoch in range(num_epochs):
     print(max([param_group['lr'] for param_group in optimizer.param_groups]),
                 min([param_group['lr'] for param_group in optimizer.param_groups]))
     lr_scheduler.step()
-
-
-
-
-#
-#
-#
 
 
 
