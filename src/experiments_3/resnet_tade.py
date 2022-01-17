@@ -23,7 +23,7 @@ name = 'experiments3/Resnet_tade/classifier'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
-num_epochs = 200
+num_epochs = 400
 batch_size = 128
 imb_factor = 0.01
 
@@ -68,15 +68,15 @@ cls_num_list = train_data_loader.cls_num_list
 # Define model
 model = resnet32(num_classes=10, use_norm=True).to(device)
 print(model)
-SAVE_PATH = f'../../weights/{name}/'
-if not os.path.exists(SAVE_PATH):
-    os.makedirs(SAVE_PATH)
-torch.save(model.state_dict(), SAVE_PATH + f'model.pth')
+# SAVE_PATH = f'../../weights/{name}/'
+# if not os.path.exists(SAVE_PATH):
+#     os.makedirs(SAVE_PATH)
+# torch.save(model.state_dict(), SAVE_PATH + f'model.pth')
 
 criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4)
 
-# SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
-# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+SAVE_PATH = f'../../weights/experiments3/resnet_tade/weight_control.pth'
+model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 
 # Define optimizer
