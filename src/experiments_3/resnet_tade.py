@@ -19,7 +19,7 @@ from models.expert_resnet_cifar import resnet32
 from loss import DiverseExpertLoss
 
 # Define hyper-parameters
-name = 'experiments3/Resnet_s/classifier'
+name = 'experiments3/Resnet_tade/classifier'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
@@ -68,6 +68,10 @@ cls_num_list = train_data_loader.cls_num_list
 # Define model
 model = resnet32(num_classes=10, use_norm=True).to(device)
 print(model)
+SAVE_PATH = f'../../weights/{name}/'
+if not os.path.exists(SAVE_PATH):
+    os.makedirs(SAVE_PATH)
+torch.save(model.state_dict(), SAVE_PATH + f'model.pth')
 
 criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4)
 
