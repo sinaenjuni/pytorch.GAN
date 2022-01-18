@@ -24,7 +24,7 @@ if __name__ == "__main__":
         if not any(target in k for target in tade_layer):
             resnet_tade_weight[k] = v
         else:
-            for i in range(3):
+            for i in range(0, 3, 2):
                 keyword = k.split(".")
                 keyword[0] = keyword[0] + "s"
                 keyword[1] = f"{i}." + keyword[1]
@@ -48,6 +48,9 @@ if __name__ == "__main__":
         #         # print(resnet_tade_weight[tade_key].size())
         #         print(v.size() == resnet_tade_weight[tade_key].size())
             # pass
+
+    print(len(resnet_s_weight))
+    print(len(resnet_tade_weight))
 
     SAVE_PATH = f'weights/{name}/'
     if not os.path.exists(SAVE_PATH):

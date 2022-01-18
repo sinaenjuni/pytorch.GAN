@@ -28,7 +28,7 @@ print('device:', device)
 
 
 # Define hyper-parameters
-name = 'experiments2/Resnet_s/GAN'
+name = 'experiments2/Resnet_s/WGAN(aug)'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
@@ -59,6 +59,7 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
+
 
 # Define Tensorboard
 tb = getTensorboard(tensorboard_path)

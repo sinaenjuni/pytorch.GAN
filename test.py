@@ -339,22 +339,22 @@ import torch.nn.functional as F
 #
 # print(unique, counts)
 
-import torch
-import torch.nn as nn
-from torchvision.utils import make_grid
-
-input_tensor = torch.rand((32,100,1,1))
-
-model = nn.Sequential(nn.ConvTranspose2d(100, 16, kernel_size=4, stride=2, padding=0, bias=False),
-                      # nn.ConvTranspose2d(16, 32, kernel_size=4, stride=2, padding=1, bias=False),
-                      # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
-                      # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
-                      )
-output_tensor = model(input_tensor)
-print(output_tensor.size())
-
-print(input_tensor.size())
-print(make_grid(input_tensor).size())
+# import torch
+# import torch.nn as nn
+# from torchvision.utils import make_grid
+#
+# input_tensor = torch.rand((32,100,1,1))
+#
+# model = nn.Sequential(nn.ConvTranspose2d(100, 16, kernel_size=4, stride=2, padding=0, bias=False),
+#                       # nn.ConvTranspose2d(16, 32, kernel_size=4, stride=2, padding=1, bias=False),
+#                       # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
+#                       # nn.ConvTranspose2d(32, 32, kernel_size=4, stride=2, padding=1, bias=False),
+#                       )
+# output_tensor = model(input_tensor)
+# print(output_tensor.size())
+#
+# print(input_tensor.size())
+# print(make_grid(input_tensor).size())
 
 # import torch
 # from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
@@ -375,3 +375,8 @@ print(make_grid(input_tensor).size())
 # inverse_prior = value.index_select(0, idx2)
 # print(torch.log(inverse_prior + 1e-9))
 # print(torch.log(prior) - torch.log(inverse_prior))
+
+
+
+for i in range(0, 3, 2):
+    print(i)
