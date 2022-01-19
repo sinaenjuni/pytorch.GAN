@@ -378,5 +378,11 @@ import torch.nn.functional as F
 
 
 
-for i in range(0, 3, 2):
-    print(i)
+lists = (1, 32, 32)
+# filtered = list(filter(lambda x : x!=3, lists))
+# print(filtered)
+
+from functools import reduce
+production = reduce(lambda x, y: x * y, lists)
+print(production)
+

@@ -1,3 +1,7 @@
+# Discriminator not use Sigmoid activation function so discriminator named as critic
+# Using Binary cross entropy loss
+
+
 import os
 import torch
 import torchvision
@@ -7,6 +11,7 @@ from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
 from utiles.imbalance_mnist_loader import ImbalanceMNISTDataLoader
 import matplotlib.pyplot as plt
+from functools import reduce
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -19,7 +24,7 @@ print('device:', device)
 # tb = SummaryWriter(log_dir=log_dir)
 
 # Hyper-parameters
-image_size = 32
+image_size = (1, 32, 32)
 noise_dim = 100
 hidden_size = 256
 batch_size = 64
@@ -37,9 +42,11 @@ fixed_noise = torch.randn(batch_size, noise_dim).to(device)
 if not os.path.exists(sample_dir):
     os.makedirs(sample_dir)
 
+
 def denorm(x):
     out = (x + 1) / 2
     return out.clamp(0, 1)
+
 
 # Image processing
 # transform = transforms.Compose([
@@ -65,121 +72,82 @@ data_loader = torch.utils.data.DataLoader(dataset=mnist,
                                           shuffle=True)
 
 
-# def initialize_weights(net):
-#     for m in net.modules():
-#         if isinstance(m, nn.Conv2d):
-#             m.weight.data.normal_(0, 0.02)
-#             m.bias.data.zero_()
-#         elif isinstance(m, nn.ConvTranspose2d):
-#             m.weight.data.normal_(0, 0.02)
-#             m.bias.data.zero_()
-#         elif isinstance(m, nn.Linear):
-#             m.weight.data.normal_(0, 0.02)
-#             m.bias.data.zero_()
-#
-# class Generator(nn.Module):
-#     # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
-#     # Architecture : FC1024_BR-FC7x7x128_BR-(64)4dc2s_BR-(1)4dc2s_S
-#     def __init__(self, input_dim=100, output_dim=1, image_size=32):
-#         super(Generator, self).__init__()
-#         self.input_dim = input_dim
-#         self.output_dim = output_dim
-#         self.image_size = image_size
-#
-#         self.fc = nn.Sequential(
-#             nn.Linear(self.input_dim, 1024),
-#             nn.BatchNorm1d(1024),
-#             nn.ReLU(),
-#             nn.Linear(1024, 128 * (self.image_size // 4) * (self.image_size // 4)),
-#             nn.BatchNorm1d(128 * (self.image_size // 4) * (self.image_size // 4)),
-#             nn.ReLU(),
-#         )
-#         self.deconv = nn.Sequential(
-#             nn.ConvTranspose2d(128, 64, 4, 2, 1),
-#             nn.BatchNorm2d(64),
-#             nn.ReLU(),
-#             nn.ConvTranspose2d(64, self.output_dim, 4, 2, 1),
-#             nn.Tanh(),
-#         )
-#         initialize_weights(self)
-#
-#     def forward(self, input):
-#         x = self.fc(input)
-#         x = x.view(-1, 128, (self.image_size // 4), (self.image_size // 4))
-#         x = self.deconv(x)
-#
-#         return x
-#
-# class Discriminator(nn.Module):
-#     # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
-#     # Architecture : (64)4c2s-(128)4c2s_BL-FC1024_BL-FC1_S
-#     def __init__(self, input_dim=1, output_dim=1, image_size=32):
-#         super(Discriminator, self).__init__()
-#         self.input_dim = input_dim
-#         self.output_dim = output_dim
-#         self.image_size = image_size
-#
-#         self.conv = nn.Sequential(
-#             nn.Conv2d(self.input_dim, 64, 4, 2, 1), # 64, 16, 16
-#             nn.LeakyReLU(0.2),
-#             nn.Conv2d(64, 128, 4, 2, 1),  # 128, 8, 8
-#             nn.BatchNorm2d(128),
-#             nn.LeakyReLU(0.2),
-#         )
-#         self.fc = nn.Sequential(
-#             nn.Linear(128 * (self.image_size // 4) * (self.image_size // 4), 1024),
-#             nn.BatchNorm1d(1024),
-#             nn.LeakyReLU(0.2),
-#             nn.Linear(1024, self.output_dim),
-#             nn.Sigmoid(),
-#         )
-#         initialize_weights(self)
-#
-#     def forward(self, input):
-#         x = self.conv(input)
-#         x = x.view(-1, 128 * (self.image_size // 4) * (self.image_size // 4))
-#         x = self.fc(x)
-#
-#         return x
-
-
 # Generator
-Generator = nn.Sequential(
-    nn.Linear(noise_dim, hidden_size),
-    nn.ReLU(True),
-    nn.Linear(hidden_size, hidden_size),
-    nn.ReLU(True),
-    nn.Linear(hidden_size, image_size*image_size),
-    nn.Tanh())
+class Generator(nn.Module):
+    def __init__(self, nz, image_size):
+        super(Generator, self).__init__()
+        output_size = reduce(lambda x, y: x * y, image_size)
+
+        def layer(in_channel, out_channel, activation):
+            return nn.Sequential(nn.Linear(in_features=in_channel, out_features=out_channel),
+                                 nn.BatchNorm1d(out_channel, 0.8),
+                                 activation)
+
+        self.input_layer = nn.Sequential(nn.Linear(in_features=nz, out_features=128), nn.ReLU(True))
+        self.layer1 = layer(in_channel=128, out_channel=256, activation=nn.ReLU(True))
+        self.layer2 = layer(in_channel=256, out_channel=512, activation=nn.ReLU(True))
+        self.layer3 = layer(in_channel=512, out_channel=1024, activation=nn.ReLU(True))
+        self.output_layer = nn.Sequential(nn.Linear(in_features=1024, out_features=output_size), nn.Tanh())
+
+    def forward(self, x):
+        out = self.input_layer(x)
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.output_layer(out)
+        return out
 
 
-# Discriminator
-Discriminator = nn.Sequential(
-    nn.Linear(image_size*image_size, hidden_size),
-    nn.LeakyReLU(0.2, True),
-    nn.Linear(hidden_size, hidden_size),
-    nn.LeakyReLU(0.2, True),
-    nn.Linear(hidden_size, 1),
-    nn.Sigmoid())
+class Discriminator(nn.Module):
+    def __init__(self, image_size, nc):
+        super(Discriminator, self).__init__()
+        input_size = reduce(lambda x, y: x * y, image_size)
+
+        def layer(in_channel, out_channel, activation):
+            return nn.Sequential(nn.Linear(in_features=in_channel, out_features=out_channel),
+                                 nn.BatchNorm1d(out_channel),
+                                 activation)
+
+        self.input_layer = nn.Sequential(
+            nn.Linear(in_features=input_size, out_features=512),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True))
+        self.layer1 = layer(in_channel=512, out_channel=256,
+                            activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
+        self.output_layer = nn.Sequential(
+            nn.Linear(in_features=256, out_features=nc))
+
+    def forward(self, x):
+        out = self.input_layer(x)
+        out = self.layer1(out)
+        out = self.output_layer(out)
+        return out
 
 
-# Device setting
-# G = Generator(input_dim=noise_dim, output_dim=1, image_size=image_size).to(device)
-# D = Discriminator(input_dim=1, output_dim=1, image_size=image_size).to(device)
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
+    elif classname.find('Linear') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
-G = Generator.to(device)
-D = Discriminator.to(device)
 
+G = Generator(nz=100, image_size=image_size).to(device)
+D = Discriminator(image_size=image_size, nc=1).to(device)
+
+G.apply(weights_init)
+D.apply(weights_init)
+
+print(G)
+print(D)
 
 # Binary cross entropy loss and optimizer
-criterion = nn.BCELoss()
-g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate_g)
-d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d)
-
-def reset_grad():
-    d_optimizer.zero_grad()
-    g_optimizer.zero_grad()
-
+bce_loss = nn.BCELoss()
+g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate_g, betas=(0.5, 0.999))
+d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d, betas=(0.5, 0.999))
 
 # Start training
 total_step = len(data_loader)
@@ -187,14 +155,9 @@ for epoch in range(epochs):
     for i, (images, _) in enumerate(data_loader):
         _batch = images.size(0)
         images = images.reshape(_batch, -1).to(device)
-        # images = images.to(device)
 
-        # Create the labels which are later used as input for the BCE loss
         real_labels = torch.ones(_batch, 1).to(device)
         fake_labels = torch.zeros(_batch, 1).to(device)
-
-        # Labels shape is (batch_size, 1): [batch_size, 1]
-
 
         # ================================================================== #
         #                      Train the discriminator                       #
@@ -203,25 +166,30 @@ for epoch in range(epochs):
         # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
         # Second term of the loss is always zero since real_labels == 1
         d_optimizer.zero_grad()
-
-        outputs = D(images)
-        d_loss_real = criterion(outputs, real_labels)
-        real_score = outputs
+        d_output_real = D(images)
+        # d_loss_real = bce_loss(outputs, real_labels)
+        d_loss_real = -torch.mean(d_output_real)
+        real_score = d_output_real
 
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
-        z = torch.randn(_batch, noise_dim).to(device) # mean==0, std==1
+        z = torch.randn(_batch, noise_dim).to(device)  # mean==0, std==1
         fake_images = G(z)
 
-        outputs = D(fake_images.detach())
-        d_loss_fake = criterion(outputs, fake_labels)
-        fake_score = outputs
+        d_output_fake = D(fake_images.detach())
+        # d_loss_fake = bce_loss(d_output_fake, fake_labels)
+        d_loss_fake = torch.mean(d_output_fake)
+        fake_score = d_output_fake
 
         # Backprop and optimize
-        d_loss = d_loss_real + d_loss_fake
+        d_loss = 0.5 * (d_loss_real + d_loss_fake)
         # reset_grad()
         d_loss.backward()
         d_optimizer.step()
+
+        # clipping D
+        for p in D.parameters():
+            p.data.clamp_(-0.01, 0.01)
 
         # ================================================================== #
         #                        Train the generator                         #
@@ -230,34 +198,32 @@ for epoch in range(epochs):
         # Compute loss with fake images
         g_optimizer.zero_grad()
 
-        z = torch.randn(_batch, noise_dim).to(device)
-        fake_images = G(z)
-        outputs = D(fake_images)
-        gened_score = outputs
+        # z = torch.randn(_batch, noise_dim).to(device)
+        # fake_images = G(z)
+        g_output = D(fake_images)
+        # g_loss = bce_loss(g_output, real_labels)
+        g_loss = -torch.mean(g_output)
+        gened_score = g_output
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
-        g_loss = criterion(outputs, real_labels)
 
         # Backprop and optimize
         # reset_grad()
         g_loss.backward()
         g_optimizer.step()
 
-
         if (i + 1) % 200 == 0:
             print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
-                  .format(epoch+1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
+                  .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
                           real_score.mean().item(), fake_score.mean().item()))
-
 
     result_images = denorm(G(fixed_noise)).detach().cpu()
     result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
-    result_images = make_grid(result_images).permute(1,2,0)
-    print(result_images.size())
+    result_images = make_grid(result_images).permute(1, 2, 0)
+    # print(result_images.size())
     plt.imshow(result_images.numpy())
     plt.show()
-
 
     # Save real images
     # if (epoch + 1) == 1:
