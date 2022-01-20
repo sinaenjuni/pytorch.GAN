@@ -3,7 +3,7 @@
 # Using RMSProp optimizer
 # Clamping weights for Discriminator (-0.01, 0.01)
 # Training Generator per n_critic
-
+# real label is one, fake label is minus one
 
 import os
 import torch
@@ -164,7 +164,7 @@ for epoch in range(epochs):
         images = images.reshape(_batch, -1).to(device)
 
         real_labels = torch.ones(_batch, 1).to(device)
-        fake_labels = torch.zeros(_batch, 1).to(device)
+        fake_labels = torch.ones(_batch, 1).to(device) * -1
 
         # ================================================================== #
         #                      Train the discriminator                       #

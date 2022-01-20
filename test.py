@@ -376,13 +376,3 @@ import torch.nn.functional as F
 # print(torch.log(inverse_prior + 1e-9))
 # print(torch.log(prior) - torch.log(inverse_prior))
 
-
-
-lists = (1, 32, 32)
-# filtered = list(filter(lambda x : x!=3, lists))
-# print(filtered)
-
-from functools import reduce
-production = reduce(lambda x, y: x * y, lists)
-print(production)
-

@@ -67,8 +67,8 @@ cls_num_list = train_data_loader.cls_num_list
 model = resnet32(num_classes=10, use_norm=True).to(device)
 print(model)
 
-# SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
-# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
+model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 # Define optimizer
 # optimizer = torch.optim.Adam(model.parameters(),
