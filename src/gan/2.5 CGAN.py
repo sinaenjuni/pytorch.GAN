@@ -61,7 +61,7 @@ transform = transforms.Compose([
                          std=[0.5])])
 
 # MNIST dataset
-mnist = torchvision.datasets.CIFAR10(root='../../data/',
+mnist = torchvision.datasets.MNIST(root='../../data/',
                                    train=True,
                                    transform=transform,
                                    download=True)
