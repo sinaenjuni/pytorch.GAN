@@ -26,7 +26,7 @@ num_workers = 4
 num_epochs = 400
 batch_size = 128
 imb_factor = 0.01
-
+num_class = 10
 learning_rate = 0.1
 weight_decay = 5e-4
 momentum = 0.9
@@ -75,8 +75,8 @@ print(model)
 
 criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4)
 
-SAVE_PATH = f'../../weights/experiments3/resnet_tade/weight_control.pth'
-model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+# SAVE_PATH = f'../../weights/experiments3/resnet_tade/weight_control.pth'
+# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 
 # Define optimizer
@@ -91,10 +91,7 @@ optimizer = torch.optim.SGD(model.parameters(),
                             weight_decay=weight_decay,
                             nesterov=nesterov)
 
-train_best_accuracy = 0
-train_best_accuracy_epoch = 0
-test_best_accuracy = 0
-test_best_accuracy_epoch = 0
+
 
 
 step1 = 160
@@ -117,6 +114,13 @@ def lr_lambda(epoch):
     return lr
 
 lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
+train_best_accuracy = 0
+train_best_accuracy_epoch = 0
+test_best_accuracy = 0
+test_best_accuracy_epoch = 0
+best_acc_per_class = [0] * num_class
+best_acc_epoch_per_class = [0] * num_class
 
 # Training model
 for epoch in range(num_epochs):
@@ -153,6 +157,8 @@ for epoch in range(num_epochs):
         train_accuracy += torch.sum(pred == target).item()
         # print(f"epochs: {epoch}, iter: {train_idx}/{len(train_data_loader)}, loss: {loss.item()}")
 
+    test_target = np.array([])
+    test_predict = np.array([])
     model.eval()
     with torch.no_grad():
         for test_idx, data in enumerate(test_data_loader):
@@ -173,6 +179,21 @@ for epoch in range(num_epochs):
 
             pred = output.argmax(-1)
             test_accuracy += torch.sum(pred == target).item()
+
+            test_target = np.append(test_target, target.cpu().numpy())
+            test_predict = np.append(test_predict, pred.cpu().numpy())
+
+    conf = confusion_matrix(test_target, test_predict)
+    print(conf)
+    for i, _conf in enumerate(conf):
+        _acc = _conf[i] / _conf.sum()
+        if best_acc_per_class[i] < _acc:
+            best_acc_per_class[i] = _acc
+            best_acc_epoch_per_class[i] = epoch
+        print(f"class: {i}, ACC: {_acc}, Best: {best_acc_per_class[i]} ({best_acc_epoch_per_class[i]})")
+    acc = np.trace(conf) / conf.sum()
+    print(f"Conf acc: {acc}")
+
 
     # print('train_loss', train_loss)
     # print('train_len', len(train_data_loader))
