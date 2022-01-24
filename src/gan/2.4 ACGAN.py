@@ -33,10 +33,11 @@ beta2 = 0.999
 sample_dir = '../samples'
 
 
-fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
+# fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
+fixed_noise = torch.randn(100, noise_dim, 1, 1).to(device)
 
 
-index = torch.tensor([[i//10] for i in range(100)])
+index = torch.tensor([[i % 10] for i in range(100)])
 fixed_onehot = torch.zeros(100, 10).scatter_(1, index, 1).to(device).view(100, 10, 1, 1)
 
 # Create a directory if not exists

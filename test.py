@@ -376,3 +376,9 @@ import torch.nn.functional as F
 # print(torch.log(inverse_prior + 1e-9))
 # print(torch.log(prior) - torch.log(inverse_prior))
 
+import torch
+tensor = torch.rand((100, 10))
+tensor = tensor.unsqueeze(1).unsqueeze(1)
+print(tensor.size())
+
+

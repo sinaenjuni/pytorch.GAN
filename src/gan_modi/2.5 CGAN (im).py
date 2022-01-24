@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
-from utiles.imbalance_mnist_loader import ImbalanceMNISTDataLoader
+from utiles.imbalance_mnist import IMBALANCEMNIST
 import matplotlib.pyplot as plt
 from functools import reduce
 
@@ -61,10 +61,16 @@ transform = transforms.Compose([
                          std=[0.5])])
 
 # MNIST dataset
-mnist = torchvision.datasets.MNIST(root='../../data/',
-                                   train=True,
-                                   transform=transform,
-                                   download=True)
+# mnist = torchvision.datasets.MNIST(root='../../data/',
+#                                    train=True,
+#                                    transform=transform,
+#                                    download=True)
+
+mnist = IMBALANCEMNIST(root='../../data/',
+                           train=True,
+                           transform=transform,
+                           download=True,
+                           imb_factor=0.01)
 
 # Data loader
 data_loader = torch.utils.data.DataLoader(dataset=mnist,

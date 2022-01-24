@@ -75,8 +75,8 @@ print(model)
 
 criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4)
 
-# SAVE_PATH = f'../../weights/experiments3/resnet_tade/weight_control.pth'
-# model.load_state_dict(torch.load(SAVE_PATH), strict=False)
+SAVE_PATH = f'../../weights/experiments3/resnet_tade/weight_control.pth'
+model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
 
 # Define optimizer
@@ -121,6 +121,10 @@ test_best_accuracy = 0
 test_best_accuracy_epoch = 0
 best_acc_per_class = [0] * num_class
 best_acc_epoch_per_class = [0] * num_class
+
+acc_per_class_at_best_epoch = [0] * num_class
+acc_epoch_per_class_at_best_epoch = [0] * num_class
+
 
 # Training model
 for epoch in range(num_epochs):
@@ -185,14 +189,30 @@ for epoch in range(num_epochs):
 
     conf = confusion_matrix(test_target, test_predict)
     print(conf)
+
+    acc = np.trace(conf) / conf.sum()
+    print(f"Conf acc: {acc}")
+
+    # if test_best_accuracy < acc:
+    #     test_best_accuracy = acc
+    #     test_best_accuracy_epoch = epoch
+
+
     for i, _conf in enumerate(conf):
         _acc = _conf[i] / _conf.sum()
         if best_acc_per_class[i] < _acc:
             best_acc_per_class[i] = _acc
             best_acc_epoch_per_class[i] = epoch
-        print(f"class: {i}, ACC: {_acc}, Best: {best_acc_per_class[i]} ({best_acc_epoch_per_class[i]})")
-    acc = np.trace(conf) / conf.sum()
-    print(f"Conf acc: {acc}")
+
+        if test_best_accuracy < acc:
+            acc_per_class_at_best_epoch[i] = _acc
+            acc_epoch_per_class_at_best_epoch[i] = epoch
+
+        print(f"class: {i}, "
+              f"ACC: {_acc}, "
+              f"Best: {best_acc_per_class[i]} ({best_acc_epoch_per_class[i]}) "
+              f"Best epoch: {acc_per_class_at_best_epoch[i]} ({acc_epoch_per_class_at_best_epoch[i]})")
+
 
 
     # print('train_loss', train_loss)
