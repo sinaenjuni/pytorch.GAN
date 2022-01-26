@@ -9,6 +9,7 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose, Normalize, ToTensor, RandomResizedCrop, RandomHorizontalFlip, \
     RandomApply, ColorJitter, RandomGrayscale
 
+import numpy as np
 from torchvision.utils import make_grid
 import matplotlib.pyplot as plt
 
@@ -54,22 +55,24 @@ test_dataset = DataLoader(dataset=test_dataset, batch_size=64, shuffle=False, nu
 class Head(nn.Module):
     def __init__(self, model):
         super(Head, self).__init__()
-
         self.head = nn.Sequential(
             nn.Linear(model.fc.in_features, model.fc.in_features),
             nn.ReLU(inplace=True),
             nn.Linear(model.fc.in_features, 128)
         )
     def forward(self, x):
-        x = torch.flatten(x)
+        # x = torch.flatten(x)
         x = self.head(x)
         x = F.normalize(x, dim=1)
         return x
 
-model = resnet18(pretrained=False)
-model.fc = Head(model)
+model = resnet18(pretrained=False).to(device)
+model.fc = Head(model).to(device)
 # # model.fc = nn.Linear(model.fc.in_features, 10)
 print(model)
+
+# from torchsummaryX import summary
+# summary(model, torch.rand((64,3, 32, 32)).to(device))
 
 
 
@@ -175,6 +178,7 @@ optimizer = SGD(model.parameters(),
 num_epoch = 200
 model.train()
 for epoch in range(num_epoch):
+    train_loss = np.array([])
     for i, (image, target) in enumerate(train_loader):
         images = torch.cat([image[0], image[1]], dim=0)
         images = images.to(device)
@@ -183,10 +187,15 @@ for epoch in range(num_epoch):
         _batch = target.shape[0]
 
         features = model(images)
-        loss =
+        f1, f2 = torch.split(features, [_batch, _batch], dim=0)
+        features = torch.cat([f1.unsqueeze(1), f2.unsqueeze(1)], dim=1)
+        loss = criterion(features, target)
 
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
+        train_loss = np.append(train_loss, loss.item())
+        # print(loss.item())
 
-
-
-
+        print(train_loss.mean())

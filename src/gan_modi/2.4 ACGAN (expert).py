@@ -130,6 +130,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, nc, ndf, num_class):
         super(Discriminator, self).__init__()
+        self.experts = 3
 
         def layer(in_channel, out_channel, kernel_size, stride, padding, use_norm, activation):
             if use_norm:
@@ -160,8 +161,12 @@ class Discriminator(nn.Module):
             nn.Conv2d(in_channels=ndf * 4, out_channels=1, kernel_size=4, stride=1, padding=0),
             nn.Sigmoid())
 
-        self.cls_layer = nn.Sequential(
-            nn.Conv2d(in_channels=ndf * 4, out_channels=num_class, kernel_size=4, stride=1, padding=0))
+        self.cls_layer = nn.ModuleList([nn.Conv2d(in_channels=ndf * 4,
+                                                  out_channels=num_class,
+                                                  kernel_size=4,
+                                                  stride=1,
+                                                  padding=0)
+                                        for _ in range(self.experts)])
 
 
     def forward(self, x):
@@ -169,9 +174,14 @@ class Discriminator(nn.Module):
         out = self.layer1(out)
         out = self.layer2(out)
         adv = self.adv_layer(out)
-        cls = self.cls_layer(out)
-        return adv, cls
 
+        outs = []
+        for ind in range(self.experts):
+            outs.append(self.cls_layer[ind](out))
+
+        # cls = self.cls_layer(out)
+        # return adv, cls
+        return adv, torch.stack(outs, dim=1)
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -193,6 +203,11 @@ D.apply(weights_init)
 
 print(G)
 print(D)
+
+adv, cls = D(torch.rand(32,1,32,32).to(device))
+print(cls.size())
+
+assert False
 
 # out = G(torch.rand((64, 100, 1, 1)).to(device))
 # print(out.size())
