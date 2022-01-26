@@ -376,9 +376,17 @@ import torch.nn.functional as F
 # print(torch.log(inverse_prior + 1e-9))
 # print(torch.log(prior) - torch.log(inverse_prior))
 
+
 import torch
-tensor = torch.rand((100, 10))
-tensor = tensor.unsqueeze(1).unsqueeze(1)
-print(tensor.size())
+
+tensor = torch.rand((3, 4))
+tensor = tensor.view(tensor.size(0), tensor.size(1), -1)
+
+print(tensor)
+unbinded = tensor.unbind(dim=1)
+print(unbinded)
+
+cated = torch.cat(unbinded, dim=0)
+print(cated)
 
 

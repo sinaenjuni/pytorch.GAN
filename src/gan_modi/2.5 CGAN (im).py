@@ -198,6 +198,9 @@ for epoch in range(epochs):
         onehot_target = onehot[target]
         filled_onehot_target = onehot_target.repeat(1,1,32,32)
 
+        # uniform_target = (torch.rand(_batch)*10).type(torch.long)
+        # uniform_onehot_target = onehot[uniform_target].repeat(1,1,32,32)
+
         real_labels = torch.ones(_batch, 1).to(device)
         fake_labels = torch.zeros(_batch, 1).to(device)
         z = torch.randn(_batch, noise_dim, 1, 1).to(device)  # mean==0, std==1
