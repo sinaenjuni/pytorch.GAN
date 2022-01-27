@@ -379,14 +379,13 @@ import torch.nn.functional as F
 
 import torch
 
-tensor = torch.rand((3, 4))
-tensor = tensor.view(tensor.size(0), tensor.size(1), -1)
+tensor = torch.rand((32,10,1,1))
+print(tensor.size())
+tensor = tensor.squeeze(2).squeeze(2)
+print(tensor.size())
 
-print(tensor)
-unbinded = tensor.unbind(dim=1)
-print(unbinded)
 
-cated = torch.cat(unbinded, dim=0)
-print(cated)
+
+
 
 

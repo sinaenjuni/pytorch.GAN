@@ -2,6 +2,7 @@ import os
 import torch
 import torchvision
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
@@ -24,7 +25,7 @@ print('device:', device)
 image_size = (1, 32, 32)
 noise_dim = 100
 hidden_size = 256
-batch_size = 64
+batch_size = 512
 num_class = 10
 epochs = 200
 learning_rate_g = 0.0002
@@ -91,6 +92,48 @@ inverse_prior, _ = torch.sort(prior, descending=False)
 
 print('prior', prior)
 print('inverse_prior', inverse_prior)
+
+
+class DiverseExpertLoss(nn.Module):
+    def __init__(self, cls_num_list=None, max_m=0.5, s=30, tau=4):
+        super().__init__()
+        self.base_loss = F.cross_entropy
+
+        prior = cls_num_list / cls_num_list.sum()
+        self.prior = torch.tensor(prior).float().cuda()
+        self.C_number = len(cls_num_list)  # class number
+        self.s = s
+        self.tau = tau
+
+    def inverse_prior(self, prior):
+        value, idx0 = torch.sort(prior)
+        _, idx1 = torch.sort(idx0)
+        idx2 = prior.shape[0] - 1 - idx1  # reverse the order
+        inverse_prior = value.index_select(0, idx2)
+
+        return inverse_prior
+
+    def forward(self, output_logits, target):
+        loss = 0
+
+        # Obtain logits from each expert
+        expert1_logits = output_logits[0]
+        expert2_logits = output_logits[1]
+        expert3_logits = output_logits[2]
+
+        # Softmax loss for expert 1
+        loss += self.base_loss(expert1_logits, target)
+
+        # Balanced Softmax loss for expert 2
+        expert2_logits = expert2_logits + torch.log(self.prior + 1e-9)
+        loss += self.base_loss(expert2_logits, target)
+
+        # Inverse Softmax loss for expert 3
+        inverse_prior = self.inverse_prior(self.prior)
+        expert3_logits = expert3_logits + torch.log(self.prior + 1e-9) - self.tau * torch.log(inverse_prior + 1e-9)
+        loss += self.base_loss(expert3_logits, target)
+
+        return loss
 
 
 # Generator
@@ -204,10 +247,9 @@ D.apply(weights_init)
 print(G)
 print(D)
 
-adv, cls = D(torch.rand(32,1,32,32).to(device))
-print(cls.size())
 
-assert False
+expert_loss = DiverseExpertLoss(cls_num_list=cls_num_list)
+
 
 # out = G(torch.rand((64, 100, 1, 1)).to(device))
 # print(out.size())
@@ -249,9 +291,9 @@ for epoch in range(epochs):
         d_real_adv_output, d_real_output_cls = D(images)
         d_real_adv_loss = bce_loss(d_real_adv_output.view(_batch, -1), real_labels)
 
-        d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
-        d_real_cls_loss = ce_loss(d_real_output_cls, target)
-
+        # d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
+        # d_real_cls_loss = ce_loss(d_real_output_cls, target)
+        d_real_cls_loss = expert_loss(d_real_output_cls.transpose(0,1).squeeze(), target)
         real_score = d_real_adv_loss
 
         # Compute BCELoss using fake images
@@ -262,9 +304,12 @@ for epoch in range(epochs):
         d_fake_adv_output, d_fake_cls_output = D(fake_images.detach())
         d_fake_adv_loss = bce_loss(d_fake_adv_output.view(_batch, -1), fake_labels)
 
-        d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
-        d_fake_cls_loss = ce_loss(d_fake_cls_output, target)
+        # d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
+        # d_fake_cls_loss = ce_loss(d_fake_cls_output, target)
+        d_fake_cls_loss = expert_loss(d_fake_cls_output.transpose(0,1).squeeze(), target)
+
         fake_score = d_fake_adv_output
+
 
         # Backprop and optimize
         d_loss = d_real_adv_loss + d_real_cls_loss + d_fake_adv_loss + d_fake_cls_loss
@@ -283,9 +328,12 @@ for epoch in range(epochs):
         # fake_images = G(z)
         g_adv_output, g_cls_output = D(fake_images)
         g_adv_loss = bce_loss(g_adv_output.view(_batch, -1), real_labels)
-        g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
 
-        g_cls_loss = ce_loss(g_cls_output, target)
+        # g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
+        # g_cls_loss = ce_loss(g_cls_output, target)
+
+        g_cls_loss = expert_loss(g_cls_output.transpose(0,1).squeeze(), target)
+
         g_loss = g_adv_loss + g_cls_loss
         gened_score = g_adv_output
 
