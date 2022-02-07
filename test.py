@@ -379,11 +379,7 @@ import torch.nn.functional as F
 
 import torch
 
-tensor = torch.rand((32,10,1,1))
-print(tensor.size())
-tensor = tensor.squeeze(2).squeeze(2)
-print(tensor.size())
-
+print(torch.nn.pi)
 
 
 

@@ -234,7 +234,8 @@ for epoch in range(epochs):
         d_real_adv_output, d_real_output_cls = D(images)
         d_real_adv_loss = bce_loss(d_real_adv_output.view(_batch, -1), real_labels)
 
-        d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
+        # d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
+        d_real_output_cls = d_real_output_cls.view(_batch, -1)
         d_real_cls_loss = ce_loss(d_real_output_cls, target)
 
         real_score = d_real_adv_loss
@@ -247,7 +248,8 @@ for epoch in range(epochs):
         d_fake_adv_output, d_fake_cls_output = D(fake_images.detach())
         d_fake_adv_loss = bce_loss(d_fake_adv_output.view(_batch, -1), fake_labels)
 
-        d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
+        # d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
+        d_fake_cls_output = d_fake_cls_output.view(_batch, -1)
         d_fake_cls_loss = ce_loss(d_fake_cls_output, target)
         fake_score = d_fake_adv_output
 
@@ -268,7 +270,8 @@ for epoch in range(epochs):
         # fake_images = G(z)
         g_adv_output, g_cls_output = D(fake_images)
         g_adv_loss = bce_loss(g_adv_output.view(_batch, -1), real_labels)
-        g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
+        # g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
+        g_cls_output = g_cls_output.view(_batch, -1)
 
         g_cls_loss = ce_loss(g_cls_output, target)
         g_loss = g_adv_loss + g_cls_loss

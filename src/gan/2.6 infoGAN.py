@@ -2,14 +2,12 @@ import os
 import torch
 import torchvision
 import torch.nn as nn
-import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
-from utiles.imbalance_mnist import IMBALANCEMNIST
+from utiles.imbalance_mnist_loader import ImbalanceMNISTDataLoader
 import matplotlib.pyplot as plt
 from functools import reduce
-import numpy as np
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -25,22 +23,16 @@ print('device:', device)
 image_size = (1, 32, 32)
 noise_dim = 100
 hidden_size = 256
-batch_size = 512
-num_class = 10
-epochs = 500
+batch_size = 64
+
+epochs = 200
 learning_rate_g = 0.0002
 learning_rate_d = 0.0002
 beta1 = 0.5
 beta2 = 0.999
 sample_dir = '../samples'
 
-
-# fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
-fixed_noise = torch.randn(100, noise_dim, 1, 1).to(device)
-
-
-index = torch.tensor([[i % 10] for i in range(100)])
-fixed_onehot = torch.zeros(100, 10).scatter_(1, index, 1).to(device).view(100, 10, 1, 1)
+fixed_noise = torch.randn(batch_size, noise_dim, 1, 1).to(device)
 
 # Create a directory if not exists
 if not os.path.exists(sample_dir):
@@ -58,7 +50,6 @@ def denorm(x):
 #                 transforms.Normalize(mean=(0.5, 0.5, 0.5),   # 3 for RGB channels
 #                                      std=(0.5, 0.5, 0.5))])
 
-
 transform = transforms.Compose([
     transforms.Resize(32),
     transforms.ToTensor(),
@@ -66,79 +57,32 @@ transform = transforms.Compose([
                          std=[0.5])])
 
 # MNIST dataset
-# mnist = torchvision.datasets.MNIST(root='../../data/',
-#                                    train=True,
-#                                    transform=transform,
-#                                    download=True)
-
-mnist = IMBALANCEMNIST(root='../../data/',
-                           train=True,
-                           transform=transform,
-                           download=True,
-                           imb_factor=0.01)
-
+mnist = torchvision.datasets.MNIST(root='../../data/',
+                                   train=True,
+                                   transform=transform,
+                                   download=True)
 
 # Data loader
 data_loader = torch.utils.data.DataLoader(dataset=mnist,
                                           batch_size=batch_size,
                                           shuffle=True)
 
-print(mnist.get_cls_num_list())
-print(mnist.num_per_cls_dict)
 
-cls_num_list = torch.tensor(mnist.get_cls_num_list()).to(device)
-prior = cls_num_list / torch.sum(cls_num_list)
-inverse_prior, _ = torch.sort(prior, descending=False)
+class GaussianNLLLoss(nn.Module):
 
-print('prior', prior)
-print('inverse_prior', inverse_prior)
-
-
-class DiverseExpertLoss(nn.Module):
-    def __init__(self, cls_num_list=None, max_m=0.5, s=30, tau=4):
+    def __init__(self):
         super().__init__()
-        self.base_loss = F.cross_entropy
 
-        prior = cls_num_list / cls_num_list.sum()
-        self.prior = torch.tensor(prior).float().cuda()
-        self.C_number = len(cls_num_list)  # class number
-        self.s = s
-        self.tau = tau
-
-    def inverse_prior(self, prior):
-        value, idx0 = torch.sort(prior)
-        _, idx1 = torch.sort(idx0)
-        idx2 = prior.shape[0] - 1 - idx1  # reverse the order
-        inverse_prior = value.index_select(0, idx2)
-
-        return inverse_prior
-
-    def forward(self, output_logits, target):
-        loss = 0
-
-        # Obtain logits from each expert
-        expert1_logits = output_logits[0]
-        expert2_logits = output_logits[1]
-        expert3_logits = output_logits[2]
-
-        # Softmax loss for expert 1
-        loss += self.base_loss(expert1_logits, target)
-
-        # Balanced Softmax loss for expert 2
-        expert2_logits = expert2_logits + torch.log(self.prior + 1e-9)
-        loss += self.base_loss(expert2_logits, target)
-
-        # Inverse Softmax loss for expert 3
-        inverse_prior = self.inverse_prior(self.prior)
-        expert3_logits = expert3_logits + torch.log(self.prior + 1e-9) - self.tau * torch.log(inverse_prior + 1e-9)
-        loss += self.base_loss(expert3_logits, target)
-
-        return loss
-
+    def forward(self, c, c_hat, sigma):
+        assert sigma > 0
+        l = (c - c_hat) ** 2
+        l /= (2 * sigma ** 2)
+        l += torch.log(sigma)
+        return l.mean()
 
 # Generator
 class Generator(nn.Module):
-    def __init__(self, nz, nc, ngf, num_class):
+    def __init__(self, nz, nc, ngf):
         super(Generator, self).__init__()
 
         def layer(in_channel, out_channel, kernel_size, stride, padding, activation):
@@ -151,7 +95,7 @@ class Generator(nn.Module):
 
         # self.input_layer = layer(in_channel=nz, out_channel=ngf * 8, kernel_size=4, stride=1, padding=0,
         #                          activation=nn.ReLU(True), use_norm=True)
-        self.input_layer = layer(in_channel=nz + num_class, out_channel=ngf * 4, kernel_size=4, stride=1, padding=0,
+        self.input_layer = layer(in_channel=nz, out_channel=ngf * 4, kernel_size=4, stride=1, padding=0,
                                  activation=nn.ReLU(True))
         self.layer2 = layer(in_channel=ngf * 4, out_channel=ngf * 2, kernel_size=4, stride=2, padding=1,
                             activation=nn.ReLU(True))
@@ -171,9 +115,8 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, nc, ndf, num_class):
+    def __init__(self, nc, ndf):
         super(Discriminator, self).__init__()
-        self.experts = 3
 
         def layer(in_channel, out_channel, kernel_size, stride, padding, use_norm, activation):
             if use_norm:
@@ -196,35 +139,43 @@ class Discriminator(nn.Module):
                             kernel_size=4, stride=2, padding=1,
                             use_norm=False,
                             activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        self.layer2 = layer(in_channel=ndf * 2, out_channel=ndf * 4,
+        self.layer2 = layer(in_channel=ndf * 2, out_channel=ndf * 4 * 4,
                             kernel_size=4, stride=2, padding=1,
                             use_norm=False,
                             activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        self.adv_layer = nn.Sequential(
-            nn.Conv2d(in_channels=ndf * 4, out_channels=1, kernel_size=4, stride=1, padding=0),
-            nn.Sigmoid())
-
-        self.cls_layer = nn.ModuleList([nn.Conv2d(in_channels=ndf * 4,
-                                                  out_channels=num_class,
-                                                  kernel_size=4,
-                                                  stride=1,
-                                                  padding=0)
-                                        for _ in range(self.experts)])
-
 
     def forward(self, x):
         out = self.input_layer(x)
         out = self.layer1(out)
         out = self.layer2(out)
-        adv = self.adv_layer(out)
+        return out
 
-        outs = []
-        for ind in range(self.experts):
-            outs.append(self.cls_layer[ind](out))
+class DHead(nn.Module):
+    def __init__(self):
+        super(DHead, self).__init__()
+        self.conv = nn.Sequential(nn.Conv2d(1024, 1, 1),
+                                  nn.Sigmoid())
+    def forward(self, x):
+        return self.conv(x)
 
-        # cls = self.cls_layer(out)
-        # return adv, cls
-        return adv, torch.stack(outs, dim=1)
+class QHead(nn.Module):
+    def __init__(self):
+        super(QHead, self).__init__()
+        self.conv = nn.Sequential(nn.Conv2d(1024, 128, 1, bias=False),
+                                  nn.BatchNorm2d(128),
+                                  nn.LeakyReLU(negative_slope=0.2, inplace=True))
+        self.conv_disc = nn.Conv2d(128, 10, 1)
+        self.conv_mu = nn.Conv2d(128, 2, 1)
+        self.conv_var = nn.Conv2d(128, 2, 1)
+    def forward(self, x):
+        x = self.conv(x)
+
+        disc_logit = self.conv_disx(x)
+        mu = self.conv_mu(x)
+        var = self.conv_var(x)
+
+        return disc_logit, mu, var
+
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -238,18 +189,19 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-G = Generator(nz=100, ngf=64, nc=1, num_class=num_class).to(device)
-D = Discriminator(nc=1, ndf=64, num_class=num_class).to(device)
+G = Generator(nz=100, ngf=64, nc=1).to(device)
+D = Discriminator(nc=1, ndf=64).to(device)
+
+netD = DHead()
+netQ = QHead()
+netD.apply(weights_init)
+netQ.apply(weights_init)
 
 G.apply(weights_init)
 D.apply(weights_init)
 
 print(G)
 print(D)
-
-
-expert_loss = DiverseExpertLoss(cls_num_list=cls_num_list)
-
 
 # out = G(torch.rand((64, 100, 1, 1)).to(device))
 # print(out.size())
@@ -260,26 +212,22 @@ expert_loss = DiverseExpertLoss(cls_num_list=cls_num_list)
 # Binary cross entropy loss and optimizer
 bce_loss = nn.BCELoss()
 ce_loss = nn.CrossEntropyLoss()
+nnll_loss = GaussianNLLLoss()
+
 g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate_g, betas=(0.5, 0.999))
 d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d, betas=(0.5, 0.999))
-
-onehot = torch.eye(num_class).to(device).view(10,10,1,1)
 
 # Start training
 total_step = len(data_loader)
 for epoch in range(epochs):
-    for i, (images, target) in enumerate(data_loader):
+    for i, (images, _) in enumerate(data_loader):
         _batch = images.size(0)
         # images = images.reshape(_batch, -1).to(device)
         images = images.to(device)
 
-        target = target.to(device)
-        onehot_target = onehot[target]
-
         real_labels = torch.ones(_batch, 1).to(device)
         fake_labels = torch.zeros(_batch, 1).to(device)
         z = torch.randn(_batch, noise_dim, 1, 1).to(device)  # mean==0, std==1
-        z = torch.cat([z, onehot_target], dim=1)
 
         # ================================================================== #
         #                      Train the discriminator                       #
@@ -288,31 +236,20 @@ for epoch in range(epochs):
         # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
         # Second term of the loss is always zero since real_labels == 1
         d_optimizer.zero_grad()
-        d_real_adv_output, d_real_output_cls = D(images)
-        d_real_adv_loss = bce_loss(d_real_adv_output.view(_batch, -1), real_labels)
 
-        # d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
-        # d_real_cls_loss = ce_loss(d_real_output_cls, target)
-        d_real_cls_loss = expert_loss(d_real_output_cls.transpose(0,1).squeeze(), target)
-        real_score = d_real_adv_loss
-
-        # Compute BCELoss using fake images
-        # First term of the loss is always zero since fake_labels == 0
+        logits_d_real = D(images)
+        outputs_d_real = netD(logits_d_real).view(_batch, -1)
+        d_loss_real = bce_loss(outputs_d_real, real_labels)
+        real_score = outputs_d_real
 
         fake_images = G(z)
-
-        d_fake_adv_output, d_fake_cls_output = D(fake_images.detach())
-        d_fake_adv_loss = bce_loss(d_fake_adv_output.view(_batch, -1), fake_labels)
-
-        # d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
-        # d_fake_cls_loss = ce_loss(d_fake_cls_output, target)
-        d_fake_cls_loss = expert_loss(d_fake_cls_output.transpose(0,1).squeeze(), target)
-
-        fake_score = d_fake_adv_output
-
+        logits_d_fake = D(fake_images.detach())
+        outputs_d_fake = netD(logits_d_fake).view(_batch, -1)
+        d_loss_fake = bce_loss(outputs_d_fake, fake_labels)
+        fake_score = outputs_d_fake
 
         # Backprop and optimize
-        d_loss = d_real_adv_loss + d_real_cls_loss + d_fake_adv_loss + d_fake_cls_loss
+        d_loss = d_loss_real + d_loss_fake
         # reset_grad()
         d_loss.backward()
         d_optimizer.step()
@@ -326,16 +263,12 @@ for epoch in range(epochs):
 
         # z = torch.randn(_batch, noise_dim).to(device)
         # fake_images = G(z)
-        g_adv_output, g_cls_output = D(fake_images)
-        g_adv_loss = bce_loss(g_adv_output.view(_batch, -1), real_labels)
+        logits_g = D(fake_images)
+        outputs_g = netD(logits_g)
+        g_loss = bce_loss(outputs_g, real_labels)
+        gened_score = outputs_g
 
-        # g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
-        # g_cls_loss = ce_loss(g_cls_output, target)
-
-        g_cls_loss = expert_loss(g_cls_output.transpose(0,1).squeeze(), target)
-
-        g_loss = g_adv_loss + g_cls_loss
-        gened_score = g_adv_output
+        q_logit, q_mu, q_var = netQ(logits_g)
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
@@ -350,10 +283,9 @@ for epoch in range(epochs):
                   .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
                           real_score.mean().item(), fake_score.mean().item()))
 
-
-    result_images = denorm(G(torch.cat([fixed_noise, fixed_onehot], dim=1))).detach().cpu()
+    result_images = denorm(G(fixed_noise)).detach().cpu()
     result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
-    result_images = make_grid(result_images, nrow=10).permute(1, 2, 0)
+    result_images = make_grid(result_images).permute(1, 2, 0)
     # print(result_images.size())
     plt.imshow(result_images.numpy())
     plt.show()
