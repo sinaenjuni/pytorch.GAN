@@ -375,7 +375,7 @@ for epoch in range(epochs):
         outputs_d_real = netD(logits_d_real).view(_batch, -1)
         d_loss_real = bce_loss(outputs_d_real, real_labels)
         real_score = outputs_d_real
-
+        d_loss_real.backward()
 
         z, idx = getNoiseSample(dis_c_dim, num_con_c, num_z, _batch)
         fake_images = G(z)
@@ -384,11 +384,12 @@ for epoch in range(epochs):
         outputs_d_fake = netD(logits_d_fake).view(_batch, -1)
         d_loss_fake = bce_loss(outputs_d_fake, fake_labels)
         fake_score = outputs_d_fake
+        d_loss_fake.backward()
 
         # Backprop and optimize
         d_loss = d_loss_real + d_loss_fake
         # reset_grad()
-        d_loss.backward()
+        # d_loss.backward()
         d_optimizer.step()
 
         # ================================================================== #
@@ -430,8 +431,9 @@ for epoch in range(epochs):
 
     # result_images = denorm(G(fixed_noise)).detach().cpu()
     result_images = G(fixed_noise).detach().cpu()
-    result_images = result_images.reshape(result_images.size(0), 1, 28, 28)
-    result_images = make_grid(result_images).permute(1, 2, 0)
+    result_images = make_grid(result_images, nrow=10, normalize=True).permute(1,2,0)
+    # result_images = result_images.reshape(result_images.size(0), 1, 28, 28)
+    # result_images = make_grid(result_images).permute(1, 2, 0)
     # print(result_images.size())
     plt.imshow(result_images.numpy())
     plt.show()
