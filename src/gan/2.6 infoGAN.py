@@ -1,5 +1,6 @@
 import os
 import torch
+import numpy as np
 import torchvision
 import torch.nn as nn
 from torchvision import transforms
@@ -21,7 +22,11 @@ print('device:', device)
 
 # Hyper-parameters
 image_size = (1, 32, 32)
-noise_dim = 100
+num_z = 62
+num_dis_c = 1
+dis_c_dim = 10
+num_con_c = 2
+
 hidden_size = 256
 batch_size = 64
 
@@ -32,7 +37,17 @@ beta1 = 0.5
 beta2 = 0.999
 sample_dir = '../samples'
 
-fixed_noise = torch.randn(batch_size, noise_dim, 1, 1).to(device)
+
+
+z = torch.randn(100, num_z, 1, 1)
+fixed_noise = z
+
+idx = torch.tensor([[i // 10] for i in range(100)])
+dis_c = torch.zeros(100, dis_c_dim).scatter_(1, idx, 1.0).view(100, dis_c_dim, 1, 1)
+con_c = torch.rand(100, num_con_c, 1, 1) * 2 - 1
+
+fixed_noise = torch.cat([fixed_noise, dis_c, con_c], dim=1)
+
 
 # Create a directory if not exists
 if not os.path.exists(sample_dir):
@@ -79,6 +94,16 @@ class GaussianNLLLoss(nn.Module):
         l /= (2 * sigma ** 2)
         l += torch.log(sigma)
         return l.mean()
+
+def getNoiseSample(dis_c_dim, num_con_c, num_z, batch_size):
+    z = torch.randn(batch_size, num_z, 1, 1)
+
+    idx = (torch.rand((batch_size, 1)) * dis_c_dim).type(torch.long)
+    dis_c = torch.zeros(batch_size, dis_c_dim).scatter_(1, idx, 1.0).view(batch_size, dis_c_dim, 1, 1)
+    con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
+
+    noise = torch.cat([z, dis_c, con_c], dim = 1)
+    return noise.to(device), idx.to(device)
 
 # Generator
 class Generator(nn.Module):
@@ -139,15 +164,20 @@ class Discriminator(nn.Module):
                             kernel_size=4, stride=2, padding=1,
                             use_norm=False,
                             activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        self.layer2 = layer(in_channel=ndf * 2, out_channel=ndf * 4 * 4,
+        self.layer2 = layer(in_channel=ndf * 2, out_channel=ndf * 4,
                             kernel_size=4, stride=2, padding=1,
                             use_norm=False,
                             activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-
+        self.output_layer = nn.Conv2d(in_channels=ndf * 4,
+                                      out_channels=ndf * 4 * 4,
+                                      kernel_size=4,
+                                      stride=1,
+                                      padding=0)
     def forward(self, x):
         out = self.input_layer(x)
         out = self.layer1(out)
         out = self.layer2(out)
+        out = self.output_layer(out)
         return out
 
 class DHead(nn.Module):
@@ -170,7 +200,7 @@ class QHead(nn.Module):
     def forward(self, x):
         x = self.conv(x)
 
-        disc_logit = self.conv_disx(x)
+        disc_logit = self.conv_disc(x)
         mu = self.conv_mu(x)
         var = self.conv_var(x)
 
@@ -189,11 +219,11 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-G = Generator(nz=100, ngf=64, nc=1).to(device)
+G = Generator(nz=74, ngf=64, nc=1).to(device)
 D = Discriminator(nc=1, ndf=64).to(device)
 
-netD = DHead()
-netQ = QHead()
+netD = DHead().to(device)
+netQ = QHead().to(device)
 netD.apply(weights_init)
 netQ.apply(weights_init)
 
@@ -214,8 +244,10 @@ bce_loss = nn.BCELoss()
 ce_loss = nn.CrossEntropyLoss()
 nnll_loss = GaussianNLLLoss()
 
-g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate_g, betas=(0.5, 0.999))
-d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d, betas=(0.5, 0.999))
+g_optimizer = torch.optim.Adam([{'params': G.parameters(),
+                                 'params': netQ.parameters()}], lr=learning_rate_g, betas=(0.5, 0.999))
+d_optimizer = torch.optim.Adam([{'params': D.parameters(),
+                                 'params': netD.parameters()}], lr=learning_rate_d, betas=(0.5, 0.999))
 
 # Start training
 total_step = len(data_loader)
@@ -227,7 +259,7 @@ for epoch in range(epochs):
 
         real_labels = torch.ones(_batch, 1).to(device)
         fake_labels = torch.zeros(_batch, 1).to(device)
-        z = torch.randn(_batch, noise_dim, 1, 1).to(device)  # mean==0, std==1
+        # z = torch.randn(_batch, noise_dim, 1, 1).to(device)  # mean==0, std==1
 
         # ================================================================== #
         #                      Train the discriminator                       #
@@ -242,6 +274,7 @@ for epoch in range(epochs):
         d_loss_real = bce_loss(outputs_d_real, real_labels)
         real_score = outputs_d_real
 
+        z, idx = getNoiseSample(dis_c_dim, num_con_c, num_z, _batch)
         fake_images = G(z)
         logits_d_fake = D(fake_images.detach())
         outputs_d_fake = netD(logits_d_fake).view(_batch, -1)
@@ -264,11 +297,14 @@ for epoch in range(epochs):
         # z = torch.randn(_batch, noise_dim).to(device)
         # fake_images = G(z)
         logits_g = D(fake_images)
-        outputs_g = netD(logits_g)
+        outputs_g = netD(logits_g).view(_batch, -1)
         g_loss = bce_loss(outputs_g, real_labels)
         gened_score = outputs_g
 
-        q_logit, q_mu, q_var = netQ(logits_g)
+        q_logits, q_mu, q_var = netQ(logits_g)
+        dis_loss = 0
+        for j in range(num_dis_c):
+            dis_loss += ce_loss(q_logits[:, j * 10: j * 10 + 10], idx[j])
 
         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf

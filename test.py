@@ -376,12 +376,31 @@ import torch.nn.functional as F
 # print(torch.log(inverse_prior + 1e-9))
 # print(torch.log(prior) - torch.log(inverse_prior))
 
-
 import torch
+import numpy as np
+fixed_noise = 100
+num_z = 62
+num_dis_c = 1
+dis_c_dim = 10
+num_con_c = 2
+batch_size = 64
 
-print(torch.nn.pi)
+z = torch.randn(100, num_z, 1, 1)
+fixed_noise = z
 
+# idx = torch.tensor([[i // 10] for i in range(100)])
+# dis_c = torch.zeros(100, dis_c_dim).scatter_(1, idx, 1.0).view(100, dis_c_dim, 1, 1)
+# print(dis_c)
+# con_c = torch.rand(100, num_con_c, 1, 1) * 2 - 1
+# fixed_noise = torch.cat([fixed_noise, dis_c, con_c], dim=1)
+# print(fixed_noise.size())
 
+def getNoiseSample(num_dis_c, dis_c_dim, num_con_c, num_z, batch):
+    z = torch.randn(batch_size, num_z, 1, 1)
 
+    idx = (torch.rand((batch_size, 1)) * dis_c_dim).type(torch.long)
+    dis_c = torch.zeros(batch_size, dis_c_dim).scatter_(1, idx, 1.0).view(batch_size, dis_c_dim, 1, 1)
+    con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
 
-
+    noise = torch.cat([z, dis_c, con_c], dim = 1)
+    return noise, idx
