@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn.functional as F
 import numpy as np
 import torchvision
 import torch.nn as nn
@@ -28,7 +29,7 @@ dis_c_dim = 10
 num_con_c = 2
 
 hidden_size = 256
-batch_size = 64
+batch_size = 128
 
 epochs = 200
 learning_rate_g = 0.0002
@@ -46,7 +47,7 @@ idx = torch.tensor([[i // 10] for i in range(100)])
 dis_c = torch.zeros(100, dis_c_dim).scatter_(1, idx, 1.0).view(100, dis_c_dim, 1, 1)
 con_c = torch.rand(100, num_con_c, 1, 1) * 2 - 1
 
-fixed_noise = torch.cat([fixed_noise, dis_c, con_c], dim=1)
+fixed_noise = torch.cat([fixed_noise, dis_c, con_c], dim=1).to(device)
 
 
 # Create a directory if not exists
@@ -66,7 +67,7 @@ def denorm(x):
 #                                      std=(0.5, 0.5, 0.5))])
 
 transform = transforms.Compose([
-    transforms.Resize(32),
+    # transforms.Resize(32),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.5],  # 1 for greyscale channels
                          std=[0.5])])
@@ -84,7 +85,6 @@ data_loader = torch.utils.data.DataLoader(dataset=mnist,
 
 
 class GaussianNLLLoss(nn.Module):
-
     def __init__(self):
         super().__init__()
 
@@ -94,6 +94,20 @@ class GaussianNLLLoss(nn.Module):
         l /= (2 * sigma ** 2)
         l += torch.log(sigma)
         return l.mean()
+
+
+class NormalNLLLoss:
+    """
+    Calculate the negative log likelihood
+    of normal distribution.
+    This needs to be minimised.
+    Treating Q(cj | x) as a factored Gaussian.
+    """
+    def __call__(self, x, mu, var):
+        logli = -0.5 * (var.mul(2 * np.pi) + 1e-6).log() - (x - mu).pow(2).div(var.mul(2.0) + 1e-6)
+        nll = -(logli.sum(1).mean())
+
+        return nll
 
 def getNoiseSample(dis_c_dim, num_con_c, num_z, batch_size):
     z = torch.randn(batch_size, num_z, 1, 1)
@@ -105,122 +119,210 @@ def getNoiseSample(dis_c_dim, num_con_c, num_z, batch_size):
     noise = torch.cat([z, dis_c, con_c], dim = 1)
     return noise.to(device), idx.to(device)
 
+
 # Generator
+# class Generator(nn.Module):
+#     def __init__(self, nz, nc, ngf):
+#         super(Generator, self).__init__()
+#
+#         def layer(in_channel, out_channel, kernel_size, stride, padding, activation):
+#             return nn.Sequential(
+#                 nn.ConvTranspose2d(in_channels=in_channel, out_channels=out_channel,
+#                                    kernel_size=kernel_size, stride=stride,
+#                                    padding=padding, bias=False),
+#                 nn.BatchNorm2d(out_channel),
+#                 activation)
+#
+#         # self.input_layer = layer(in_channel=nz, out_channel=ngf * 8, kernel_size=4, stride=1, padding=0,
+#         #                          activation=nn.ReLU(True), use_norm=True)
+#         self.input_layer = layer(in_channel=nz, out_channel=ngf * 4 * 4, kernel_size=4, stride=1, padding=0,
+#                                  activation=nn.ReLU(True))
+#         self.layer2 = layer(in_channel=ngf * 4 * 4, out_channel=ngf * 2 * 4, kernel_size=4, stride=2, padding=1,
+#                             activation=nn.ReLU(True))
+#         self.layer3 = layer(in_channel=ngf * 2 * 4, out_channel=ngf * 4, kernel_size=4, stride=2, padding=1,
+#                             activation=nn.ReLU(True))
+#         self.output_layer = nn.Sequential(
+#             nn.ConvTranspose2d(in_channels=ngf * 4, out_channels=nc, kernel_size=4, stride=2, padding=1),
+#             nn.Tanh())
+#
+#     def forward(self, x):
+#         out = self.input_layer(x)
+#         # out = self.layer1(out)
+#         out = self.layer2(out)
+#         out = self.layer3(out)
+#         out = self.output_layer(out)
+#         return out
+#
+#
+# class Discriminator(nn.Module):
+#     def __init__(self, nc, ndf):
+#         super(Discriminator, self).__init__()
+#
+#         def layer(in_channel, out_channel, kernel_size, stride, padding, use_norm, activation):
+#             if use_norm:
+#                 return nn.Sequential(
+#                     nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
+#                               kernel_size=kernel_size, stride=stride, padding=padding),
+#                     nn.BatchNorm2d(out_channel),
+#                     activation)
+#             else:
+#                 return nn.Sequential(
+#                     nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
+#                               kernel_size=kernel_size, stride=stride, padding=padding),
+#                     activation)
+#
+#         self.input_layer = layer(in_channel=nc, out_channel=ndf,
+#                                  kernel_size=4, stride=2, padding=1,
+#                                  use_norm=False,
+#                                  activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
+#         self.layer1 = layer(in_channel=ndf, out_channel=ndf * 2,
+#                             kernel_size=4, stride=2, padding=1,
+#                             use_norm=False,
+#                             activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
+#         self.layer2 = layer(in_channel=ndf * 2, out_channel=ndf * 4,
+#                             kernel_size=4, stride=2, padding=1,
+#                             use_norm=False,
+#                             activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
+#         self.output_layer = nn.Conv2d(in_channels=ndf * 4,
+#                                       out_channels=ndf * 4 * 4,
+#                                       kernel_size=4,
+#                                       stride=1,
+#                                       padding=0)
+#     def forward(self, x):
+#         out = self.input_layer(x)
+#         out = self.layer1(out)
+#         out = self.layer2(out)
+#         out = self.output_layer(out)
+#         return out
+#
+# class DHead(nn.Module):
+#     def __init__(self):
+#         super(DHead, self).__init__()
+#         self.conv = nn.Sequential(nn.Conv2d(1024, 1, 1),
+#                                   nn.Sigmoid())
+#     def forward(self, x):
+#         return self.conv(x)
+#
+# class QHead(nn.Module):
+#     def __init__(self):
+#         super(QHead, self).__init__()
+#         self.conv = nn.Sequential(nn.Conv2d(1024, 128, 1, bias=False),
+#                                   nn.BatchNorm2d(128),
+#                                   nn.LeakyReLU(negative_slope=0.2, inplace=True))
+#         self.conv_disc = nn.Conv2d(128, 10, 1)
+#         self.conv_mu = nn.Conv2d(128, 2, 1)
+#         self.conv_var = nn.Conv2d(128, 2, 1)
+#     def forward(self, x):
+#         x = self.conv(x)
+#
+#         disc_logit = self.conv_disc(x).squeeze()
+#         mu = self.conv_mu(x).squeeze()
+#         var = torch.exp(self.conv_var(x).squeeze())
+#         return disc_logit, mu, var
+
+
+# def weights_init(m):
+#     classname = m.__class__.__name__
+#     if classname.find('Conv') != -1:
+#         nn.init.normal_(m.weight.data, 0.0, 0.02)
+#     elif classname.find('BatchNorm') != -1:
+#         nn.init.normal_(m.weight.data, 1.0, 0.02)
+#         nn.init.constant_(m.bias.data, 0)
+#     elif classname.find('Linear') != -1:
+#         nn.init.normal_(m.weight.data, 0.0, 0.02)
+#         nn.init.constant_(m.bias.data, 0)
+
+
 class Generator(nn.Module):
-    def __init__(self, nz, nc, ngf):
-        super(Generator, self).__init__()
+    def __init__(self):
+        super().__init__()
 
-        def layer(in_channel, out_channel, kernel_size, stride, padding, activation):
-            return nn.Sequential(
-                nn.ConvTranspose2d(in_channels=in_channel, out_channels=out_channel,
-                                   kernel_size=kernel_size, stride=stride,
-                                   padding=padding, bias=False),
-                nn.BatchNorm2d(out_channel),
-                activation)
+        self.tconv1 = nn.ConvTranspose2d(74, 1024, 1, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(1024)
 
-        # self.input_layer = layer(in_channel=nz, out_channel=ngf * 8, kernel_size=4, stride=1, padding=0,
-        #                          activation=nn.ReLU(True), use_norm=True)
-        self.input_layer = layer(in_channel=nz, out_channel=ngf * 4, kernel_size=4, stride=1, padding=0,
-                                 activation=nn.ReLU(True))
-        self.layer2 = layer(in_channel=ngf * 4, out_channel=ngf * 2, kernel_size=4, stride=2, padding=1,
-                            activation=nn.ReLU(True))
-        self.layer3 = layer(in_channel=ngf * 2, out_channel=ngf, kernel_size=4, stride=2, padding=1,
-                            activation=nn.ReLU(True))
-        self.output_layer = nn.Sequential(
-            nn.ConvTranspose2d(in_channels=ngf, out_channels=nc, kernel_size=4, stride=2, padding=1),
-            nn.Tanh())
+        self.tconv2 = nn.ConvTranspose2d(1024, 128, 7, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(128)
+
+        self.tconv3 = nn.ConvTranspose2d(128, 64, 4, 2, padding=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(64)
+
+        self.tconv4 = nn.ConvTranspose2d(64, 1, 4, 2, padding=1, bias=False)
 
     def forward(self, x):
-        out = self.input_layer(x)
-        # out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.output_layer(out)
-        return out
+        x = F.relu(self.bn1(self.tconv1(x)))
+        x = F.relu(self.bn2(self.tconv2(x)))
+        x = F.relu(self.bn3(self.tconv3(x)))
 
+        img = torch.sigmoid(self.tconv4(x))
+
+        return img
 
 class Discriminator(nn.Module):
-    def __init__(self, nc, ndf):
-        super(Discriminator, self).__init__()
+    def __init__(self):
+        super().__init__()
 
-        def layer(in_channel, out_channel, kernel_size, stride, padding, use_norm, activation):
-            if use_norm:
-                return nn.Sequential(
-                    nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
-                              kernel_size=kernel_size, stride=stride, padding=padding),
-                    nn.BatchNorm2d(out_channel),
-                    activation)
-            else:
-                return nn.Sequential(
-                    nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
-                              kernel_size=kernel_size, stride=stride, padding=padding),
-                    activation)
+        self.conv1 = nn.Conv2d(1, 64, 4, 2, 1)
 
-        self.input_layer = layer(in_channel=nc, out_channel=ndf,
-                                 kernel_size=4, stride=2, padding=1,
-                                 use_norm=False,
-                                 activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        self.layer1 = layer(in_channel=ndf, out_channel=ndf * 2,
-                            kernel_size=4, stride=2, padding=1,
-                            use_norm=False,
-                            activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        self.layer2 = layer(in_channel=ndf * 2, out_channel=ndf * 4,
-                            kernel_size=4, stride=2, padding=1,
-                            use_norm=False,
-                            activation=nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        self.output_layer = nn.Conv2d(in_channels=ndf * 4,
-                                      out_channels=ndf * 4 * 4,
-                                      kernel_size=4,
-                                      stride=1,
-                                      padding=0)
+        self.conv2 = nn.Conv2d(64, 128, 4, 2, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(128)
+
+        self.conv3 = nn.Conv2d(128, 1024, 7, bias=False)
+        self.bn3 = nn.BatchNorm2d(1024)
+
     def forward(self, x):
-        out = self.input_layer(x)
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.output_layer(out)
-        return out
+        x = F.leaky_relu(self.conv1(x), 0.1, inplace=True)
+        x = F.leaky_relu(self.bn2(self.conv2(x)), 0.1, inplace=True)
+        x = F.leaky_relu(self.bn3(self.conv3(x)), 0.1, inplace=True)
+
+        return x
 
 class DHead(nn.Module):
     def __init__(self):
-        super(DHead, self).__init__()
-        self.conv = nn.Sequential(nn.Conv2d(1024, 1, 1),
-                                  nn.Sigmoid())
+        super().__init__()
+
+        self.conv = nn.Conv2d(1024, 1, 1)
+
     def forward(self, x):
-        return self.conv(x)
+        output = torch.sigmoid(self.conv(x))
+
+        return output
 
 class QHead(nn.Module):
     def __init__(self):
-        super(QHead, self).__init__()
-        self.conv = nn.Sequential(nn.Conv2d(1024, 128, 1, bias=False),
-                                  nn.BatchNorm2d(128),
-                                  nn.LeakyReLU(negative_slope=0.2, inplace=True))
+        super().__init__()
+
+        self.conv1 = nn.Conv2d(1024, 128, 1, bias=False)
+        self.bn1 = nn.BatchNorm2d(128)
+
         self.conv_disc = nn.Conv2d(128, 10, 1)
         self.conv_mu = nn.Conv2d(128, 2, 1)
         self.conv_var = nn.Conv2d(128, 2, 1)
+
     def forward(self, x):
-        x = self.conv(x)
+        x = F.leaky_relu(self.bn1(self.conv1(x)), 0.1, inplace=True)
 
-        disc_logit = self.conv_disc(x)
-        mu = self.conv_mu(x)
-        var = self.conv_var(x)
+        disc_logits = self.conv_disc(x).squeeze()
 
-        return disc_logit, mu, var
+        mu = self.conv_mu(x).squeeze()
+        var = torch.exp(self.conv_var(x).squeeze())
+
+        return disc_logits, mu, var
 
 
 def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    """
+    Initialise weights of the model.
+    """
+    if(type(m) == nn.ConvTranspose2d or type(m) == nn.Conv2d):
         nn.init.normal_(m.weight.data, 0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
+    elif(type(m) == nn.BatchNorm2d):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
-    elif classname.find('Linear') != -1:
-        nn.init.normal_(m.weight.data, 0.0, 0.02)
-        nn.init.constant_(m.bias.data, 0)
 
-
-G = Generator(nz=74, ngf=64, nc=1).to(device)
-D = Discriminator(nc=1, ndf=64).to(device)
+# G = Generator(nz=74, ngf=64, nc=1).to(device)
+# D = Discriminator(nc=1, ndf=64).to(device)
+G = Generator().to(device)
+D = Discriminator().to(device)
 
 netD = DHead().to(device)
 netQ = QHead().to(device)
@@ -242,7 +344,7 @@ print(D)
 # Binary cross entropy loss and optimizer
 bce_loss = nn.BCELoss()
 ce_loss = nn.CrossEntropyLoss()
-nnll_loss = GaussianNLLLoss()
+nnll_loss = NormalNLLLoss()
 
 g_optimizer = torch.optim.Adam([{'params': G.parameters(),
                                  'params': netQ.parameters()}], lr=learning_rate_g, betas=(0.5, 0.999))
@@ -274,8 +376,10 @@ for epoch in range(epochs):
         d_loss_real = bce_loss(outputs_d_real, real_labels)
         real_score = outputs_d_real
 
+
         z, idx = getNoiseSample(dis_c_dim, num_con_c, num_z, _batch)
         fake_images = G(z)
+
         logits_d_fake = D(fake_images.detach())
         outputs_d_fake = netD(logits_d_fake).view(_batch, -1)
         d_loss_fake = bce_loss(outputs_d_fake, fake_labels)
@@ -302,15 +406,20 @@ for epoch in range(epochs):
         gened_score = outputs_g
 
         q_logits, q_mu, q_var = netQ(logits_g)
-        dis_loss = 0
-        for j in range(num_dis_c):
-            dis_loss += ce_loss(q_logits[:, j * 10: j * 10 + 10], idx[j])
-
-        # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
-        # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
+        # dis_loss = 0
+        # for j in range(num_dis_c):
+            # dis_loss += ce_loss(q_logits[:, j * 10: j * 10 + 10], idx[j])
+        dis_loss = ce_loss(q_logits.view(_batch, -1), idx.squeeze())
+        # con_loss = 0
+        # if (params['num_con_c'] != 0):
+        #     con_loss = criterionQ_con(
+        #         noise[:, params['num_z'] + params['num_dis_c'] * params['dis_c_dim']:].view(-1, params['num_con_c']),
+        #         q_mu, q_var) * 0.1
+        con_loss = nnll_loss(z[:, num_z + dis_c_dim :].view(-1, num_con_c), q_mu, q_var) * 0.1
 
         # Backprop and optimize
         # reset_grad()
+        g_loss = g_loss + dis_loss + con_loss
         g_loss.backward()
         g_optimizer.step()
 
@@ -319,8 +428,9 @@ for epoch in range(epochs):
                   .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
                           real_score.mean().item(), fake_score.mean().item()))
 
-    result_images = denorm(G(fixed_noise)).detach().cpu()
-    result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
+    # result_images = denorm(G(fixed_noise)).detach().cpu()
+    result_images = G(fixed_noise).detach().cpu()
+    result_images = result_images.reshape(result_images.size(0), 1, 28, 28)
     result_images = make_grid(result_images).permute(1, 2, 0)
     # print(result_images.size())
     plt.imshow(result_images.numpy())
