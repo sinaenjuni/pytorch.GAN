@@ -112,8 +112,9 @@ class NormalNLLLoss:
 def getNoiseSample(dis_c_dim, num_con_c, num_z, batch_size):
     z = torch.randn(batch_size, num_z, 1, 1)
 
-    idx = (torch.rand((batch_size, 1)) * dis_c_dim).type(torch.long)
+    idx = (torch.rand((batch_size, 1)) * dis_c_dim).type_as(torch.LongTensor())
     dis_c = torch.zeros(batch_size, dis_c_dim).scatter_(1, idx, 1.0).view(batch_size, dis_c_dim, 1, 1)
+    # dis_c = (torch.rand(batch_size, dis_c_dim, 1, 1) * 10).type_as(torch.LongTensor())
     con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
 
     noise = torch.cat([z, dis_c, con_c], dim = 1)
@@ -351,6 +352,7 @@ g_optimizer = torch.optim.Adam([{'params': G.parameters(),
 d_optimizer = torch.optim.Adam([{'params': D.parameters(),
                                  'params': netD.parameters()}], lr=learning_rate_d, betas=(0.5, 0.999))
 
+
 # Start training
 total_step = len(data_loader)
 for epoch in range(epochs):
@@ -375,7 +377,6 @@ for epoch in range(epochs):
         outputs_d_real = netD(logits_d_real).view(_batch, -1)
         d_loss_real = bce_loss(outputs_d_real, real_labels)
         real_score = outputs_d_real
-        d_loss_real.backward()
 
         z, idx = getNoiseSample(dis_c_dim, num_con_c, num_z, _batch)
         fake_images = G(z)
@@ -384,12 +385,10 @@ for epoch in range(epochs):
         outputs_d_fake = netD(logits_d_fake).view(_batch, -1)
         d_loss_fake = bce_loss(outputs_d_fake, fake_labels)
         fake_score = outputs_d_fake
-        d_loss_fake.backward()
 
         # Backprop and optimize
         d_loss = d_loss_real + d_loss_fake
-        # reset_grad()
-        # d_loss.backward()
+        d_loss.backward()
         d_optimizer.step()
 
         # ================================================================== #

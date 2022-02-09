@@ -47,10 +47,12 @@ class IMBALANCEMNIST(torchvision.datasets.MNIST):
         for the_class, the_img_num in zip(classes, img_num_per_cls):
             self.num_per_cls_dict[the_class] = the_img_num
             idx = np.where(targets_np == the_class)[0]
-            np.random.shuffle(idx)
+            # np.random.shuffle(idx)
             selec_idx = idx[:the_img_num]
             new_data.append(self.data[selec_idx, ...])
-            new_targets.extend([the_class, ] * the_img_num)
+            # new_targets.extend([the_class, ] * the_img_num)
+            new_targets.extend(targets_np[selec_idx])
+
         new_data = np.vstack(new_data)
         self.data = torch.tensor(new_data)
         self.targets = torch.tensor(new_targets)

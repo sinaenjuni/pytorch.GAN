@@ -42,7 +42,6 @@ import torch.nn.functional as F
 # print(fill[1].mean())
 
 
-
 # # fixed noise & label
 # temp_z_ = torch.randn(10, 100)
 # fixed_z_ = temp_z_
@@ -77,8 +76,6 @@ import torch.nn.functional as F
 # mini_batch = 32
 # y_ = (torch.rand(mini_batch, 1) * 10).type(torch.LongTensor).squeeze()
 # print(y_)
-
-
 
 
 # import numpy as np
@@ -202,7 +199,6 @@ import torch.nn.functional as F
 #
 # for i in range(1, 5):
 #     print(i)
-
 
 
 # import numpy as np
@@ -378,13 +374,13 @@ import torch.nn.functional as F
 
 import torch
 import numpy as np
+
 fixed_noise = 100
 num_z = 62
 num_dis_c = 1
 dis_c_dim = 10
 num_con_c = 2
 batch_size = 64
-
 
 # # Fixed Noise
 # z = torch.randn(100, num_z, 1, 1)
@@ -427,8 +423,6 @@ batch_size = 64
 #     print(fixed_noise[i, 72 :   ])
 
 
-
-
 # def getNoiseSample(num_dis_c, dis_c_dim, num_con_c, num_z, batch):
 #     z = torch.randn(batch_size, num_z, 1, 1)
 #
@@ -440,35 +434,45 @@ batch_size = 64
 #     return noise, idx
 
 
-z = torch.randn(batch_size, num_z, 1, 1)
+# z = torch.randn(batch_size, num_z, 1, 1)
+#
+# idx = np.zeros((num_dis_c, batch_size))
+# dis_c = torch.zeros(batch_size, num_dis_c, dis_c_dim)
+#
+# for i in range(num_dis_c):
+#     idx[i] = np.random.randint(dis_c_dim, size=batch_size)
+#     dis_c[torch.arange(0, batch_size), i, idx[i]] = 1.0
+#
+# dis_c = dis_c.view(batch_size, -1, 1, 1)
+#
+# con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
+#
+# noise = z
+# noise = torch.cat((z, dis_c), dim=1)
+# noise = torch.cat((noise, con_c), dim=1)
+#
+# # print(noise[0,    : 62])
+# print(noise[0, 62 : 72])
+# print(noise[0, 72 :   ])
+#
+# z = torch.randn(batch_size, num_z, 1, 1)
+#
+# idx = (torch.rand((batch_size, 1)) * dis_c_dim).type(torch.long)
+# dis_c = torch.zeros(batch_size, dis_c_dim).scatter_(1, idx, 1.0).view(batch_size, dis_c_dim, 1, 1)
+# con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
+#
+# noise = torch.cat([z, dis_c, con_c], dim=1)
+#
+# # print(noise[0,    : 62])
+# print(noise[0, 62 : 72])
+# print(noise[0, 72 :   ])
 
-idx = np.zeros((num_dis_c, batch_size))
-dis_c = torch.zeros(batch_size, num_dis_c, dis_c_dim)
 
-for i in range(num_dis_c):
-    idx[i] = np.random.randint(dis_c_dim, size=batch_size)
-    dis_c[torch.arange(0, batch_size), i, idx[i]] = 1.0
+idx = (torch.rand((batch_size, 1)) * dis_c_dim).type_as(torch.LongTensor())
+print(idx)
+# z_contin = np.random.uniform(-1, 1, size=[1000])
+# print(z_contin)
 
-dis_c = dis_c.view(batch_size, -1, 1, 1)
 
-con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
-
-noise = z
-noise = torch.cat((z, dis_c), dim=1)
-noise = torch.cat((noise, con_c), dim=1)
-
-# print(noise[0,    : 62])
-print(noise[0, 62 : 72])
-print(noise[0, 72 :   ])
-
-z = torch.randn(batch_size, num_z, 1, 1)
-
-idx = (torch.rand((batch_size, 1)) * dis_c_dim).type(torch.long)
-dis_c = torch.zeros(batch_size, dis_c_dim).scatter_(1, idx, 1.0).view(batch_size, dis_c_dim, 1, 1)
-con_c = torch.rand(batch_size, num_con_c, 1, 1) * 2 - 1
-
-noise = torch.cat([z, dis_c, con_c], dim=1)
-
-# print(noise[0,    : 62])
-print(noise[0, 62 : 72])
-print(noise[0, 72 :   ])
+test=6000+3596+2156+1292+774+464+278+166+100+60
+print(test)
