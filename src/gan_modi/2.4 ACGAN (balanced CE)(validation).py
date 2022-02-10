@@ -1,10 +1,13 @@
 import os
 import torch
-import torchvision
 import torch.nn as nn
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+
+import torchvision
 from torchvision import transforms
 from torchvision.utils import make_grid
-from torch.utils.tensorboard import SummaryWriter
+
 from utiles.imbalance_mnist import IMBALANCEMNIST
 from utiles.imbalance_cifar import IMBALANCECIFAR10
 import matplotlib.pyplot as plt
@@ -76,11 +79,16 @@ transform = transforms.Compose([
 #                                    transform=transform,
 #                                    download=True)
 
-dataset = IMBALANCEMNIST(root='../../data/',
+dataset_train = IMBALANCEMNIST(root='../../data/',
                            train=True,
                            transform=transform,
                            download=False,
                            imb_factor=0.01)
+
+dataset_test = IMBALANCEMNIST(root='../../data/',
+                           train=False,
+                           transform=transform,
+                           download=False)
 
 # dataset = IMBALANCECIFAR10(root='../../data/',
 #                            train=True,
@@ -89,14 +97,17 @@ dataset = IMBALANCEMNIST(root='../../data/',
 #                            imb_factor=0.01)
 
 # Data loader
-data_loader = torch.utils.data.DataLoader(dataset=dataset,
+loader_train = torch.utils.data.DataLoader(dataset=dataset_train,
                                           batch_size=batch_size,
                                           shuffle=True)
 
-print(dataset.get_cls_num_list())
-print(dataset.num_per_cls_dict)
+loader_test = torch.utils.data.DataLoader(dataset=dataset_test,
+                                          batch_size=batch_size,
+                                          shuffle=True)
+print(dataset_train.get_cls_num_list())
+print(dataset_train.num_per_cls_dict)
 
-cls_num_list = torch.tensor(dataset.get_cls_num_list()).to(device)
+cls_num_list = torch.tensor(dataset_train.get_cls_num_list()).to(device)
 prior = cls_num_list / torch.sum(cls_num_list)
 inverse_prior, _ = torch.sort(prior, descending=False)
 
@@ -199,8 +210,8 @@ def weights_init(m):
 G = Generator(nz=100, ngf=64, nc=1, num_class=num_class).to(device)
 D = Discriminator(nc=1, ndf=64, num_class=num_class).to(device)
 
-G.apply(weights_init)
-D.apply(weights_init)
+# G.apply(weights_init)
+# D.apply(weights_init)
 
 print(G)
 print(D)
@@ -220,9 +231,9 @@ d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d, betas=(0.5, 0
 onehot = torch.eye(num_class).to(device).view(10,10,1,1)
 
 # Start training
-total_step = len(data_loader)
+total_step = len(loader_train)
 for epoch in range(epochs):
-    for i, (images, target) in enumerate(data_loader):
+    for i, (images, target) in enumerate(loader_train):
         _batch = images.size(0)
         # images = images.reshape(_batch, -1).to(device)
         images = images.to(device)
