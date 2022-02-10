@@ -1,8 +1,12 @@
 import torch
+from torchvision.utils import make_grid
 import numpy as np
+import matplotlib.pyplot as plt
 from utiles.imbalance_mnist import IMBALANCEMNIST
+from utiles.imbalance_cifar import IMBALANCECIFAR10
 from torchvision import transforms
 from torch.utils.data import Dataset, ConcatDataset, Sampler, RandomSampler, BatchSampler, DataLoader, SequentialSampler
+from utiles.sampler import SelectSampler
 
 transform = transforms.Compose([
     transforms.Resize(32),
@@ -11,31 +15,30 @@ transform = transforms.Compose([
                          std=[0.5])])
 
 
-class SelectSampler(Sampler):
-    def __init__(self, data_source, target_label):
-        self.data_source = data_source
-        print("adawD", len(data_source.targets))
-        self.target_idx = np.where(data_source.targets == target_label)[0]
-        print(self.target_idx)
-    def __iter__(self):
-        return iter(self.target_idx)
-    def __len__(self):
-        return len(self.target_idx)
 
-mnist = IMBALANCEMNIST(root='./data/',
-                           train=True,
-                           transform=transform,
-                           download=False,
-                           imb_factor=0.01)
 
-print("data", len(mnist))
-print("img", len(mnist.data))
-print("label", len(mnist.train_labels))
-select_sampler = SelectSampler(mnist, 9)
-loader = DataLoader(mnist, batch_size=32, sampler=select_sampler)
+# dataset = IMBALANCEMNIST(root='./data/',
+#                        train=True,
+#                        transform=transform,
+#                        download=False,
+#                        imb_factor=0.01)
+
+dataset = IMBALANCECIFAR10(root='./data/',
+                       train=True,
+                       transform=transform,
+                       download=False,
+                       imb_factor=0.01)
+select_sampler = SelectSampler(data_source=dataset, target_label=1, shuffle=True)
+loader = DataLoader(dataset, batch_size=100, sampler=select_sampler)
+
+# loader = DataLoader(dataset, batch_size=100)
 
 for i in loader:
-    print(i)
+    print(i[1])
+    grid = make_grid(i[0], nrow=10, normalize=True)
+    plt.imshow(grid.permute(1, 2, 0).contiguous())
+    plt.show()
+    # print(i[1])
 # print(len(loader))
 
 # class MyDataset(Dataset):
@@ -127,6 +130,3 @@ for i in loader:
 # for data in loader:
 #     print(data['input'])
 #     print(data['label'])
-
-
-

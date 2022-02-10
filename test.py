@@ -468,11 +468,24 @@ batch_size = 64
 # print(noise[0, 72 :   ])
 
 
-idx = (torch.rand((batch_size, 1)) * dis_c_dim).type_as(torch.LongTensor())
-print(idx)
-# z_contin = np.random.uniform(-1, 1, size=[1000])
-# print(z_contin)
+def generator(stop_number):
+    num = 0
+    while True:
+        if num >= stop_number:
+            return
+        num += 2
+        yield num
 
 
-test=6000+3596+2156+1292+774+464+278+166+100+60
-print(test)
+def func(stop_number):
+    gen = generator(stop_number)
+    yield from gen
+
+
+foo = func(10)
+print(foo.__next__())
+print(foo.__next__())
+print(foo.__next__())
+print(foo.__next__())
+print(foo.__next__())
+print(foo.__next__())
