@@ -3,10 +3,11 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.transforms.functional import to_pil_image
 
 import torchvision
 from torchvision import transforms
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, save_image
 
 from utiles.imbalance_mnist import IMBALANCEMNIST
 from utiles.imbalance_cifar import IMBALANCECIFAR10
@@ -43,7 +44,7 @@ beta1 = 0.5
 beta2 = 0.999
 sample_dir = '../samples'
 
-target_label = 0
+target_label = 8
 
 # fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
 # fixed_noise = torch.randn(100, noise_dim, 1, 1).to(device)
@@ -102,16 +103,17 @@ dataset_test = IMBALANCEMNIST(root='../../data/',
 #                            download=True,
 #                            imb_factor=0.01)
 
-# Data loader
-select_sampler_train = SelectSampler(data_source=dataset_train, target_label=target_label, shuffle=False)
-loader_train = torch.utils.data.DataLoader(dataset=dataset_train,
-                                          batch_size=batch_size,
-                                          sampler=select_sampler_train)
+# # Data loader
+# select_sampler_train = SelectSampler(data_source=dataset_train, target_label=target_label, shuffle=False)
+# loader_train = torch.utils.data.DataLoader(dataset=dataset_train,
+#                                           batch_size=batch_size,
+#                                           sampler=select_sampler_train)
+#
+# select_sampler_test = SelectSampler(data_source=dataset_test, target_label=target_label, shuffle=False)
+# loader_test = torch.utils.data.DataLoader(dataset=dataset_test,
+#                                           batch_size=batch_size,
+#                                           sampler=select_sampler_test)
 
-select_sampler_test = SelectSampler(data_source=dataset_test, target_label=target_label, shuffle=False)
-loader_test = torch.utils.data.DataLoader(dataset=dataset_test,
-                                          batch_size=batch_size,
-                                          sampler=select_sampler_test)
 
 # print(dataset_train.get_cls_num_list())
 # print(dataset_train.num_per_cls_dict)
@@ -236,194 +238,53 @@ loader_test = torch.utils.data.DataLoader(dataset=dataset_test,
                                           batch_size=batch_size,
                                           sampler=select_sampler_test)
 
-
-print(f"Epoch\t"
-      f"Train adv\t"
-      f"Train cls\t"
-      f"Test adv\t"
-      f"Test cls\t"
-      f"Gened adv\t"
-      f"Gened cls")
-
-for i in range(200):
-    print(f"{i}", end='\t')
-    G.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ G_{i}.ckpt"))
-    D.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ D_{i}.ckpt"))
-    train_data = iter(loader_train).__next__()[0].to(device)
-    test_data = iter(loader_test).__next__()[0].to(device)
-    gened_data = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach()
-
-    output_adv, logit_cls = D(train_data)
-    adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
-    cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
-    print(f"{adv_loss.item():.4}\t"
-          f"{cls_loss.item():.4}", end='\t')
+train_data = iter(loader_train).__next__()[0].to(device)
+test_data = iter(loader_test).__next__()[0].to(device)
+gened_data = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach()
 
 
-    output_adv, logit_cls = D(test_data)
-    adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
-    cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
-    print(f"{adv_loss.item():.4}\t"
-          f"{cls_loss.item():.4}", end='\t')
+print(train_data.size())
+print(test_data.size())
+print(gened_data.size())
 
+# print(f"Epoch\t"
+#       f"Train adv\t"
+#       f"Train cls\t"
+#       f"Test adv\t"
+#       f"Test cls\t"
+#       f"Gened adv\t"
+#       f"Gened cls")
+#
+# for i in range(200):
+#     print(f"{i}", end='\t')
+#     G.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ G_{i}.ckpt"))
+#     D.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ D_{i}.ckpt"))
+#
+#     images_dir = f'./images/ACGAN_balancedCE/{target_label}/'
+#     if not os.path.exists(images_dir):
+#         os.makedirs(images_dir)
+#     save_image(make_grid(gened_data.detach().cpu(), nrow=10, normalize=True), fp=images_dir+f"{i}.png")
+#     # grid = save_image(gened_data.detach().cpu(), nrow=10, normalize=True).permute(1,2,0).contiguous()
+#
+#
+#     output_adv, logit_cls = D(train_data)
+#     adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
+#     cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
+#     print(f"{adv_loss.item():.4}\t"
+#           f"{cls_loss.item():.4}", end='\t')
+#
+#
+#     output_adv, logit_cls = D(test_data)
+#     adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
+#     cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
+#     print(f"{adv_loss.item():.4}\t"
+#           f"{cls_loss.item():.4}", end='\t')
+#
+#
+#     output_adv, logit_cls = D(gened_data)
+#     adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
+#     cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
+#     print(f"{adv_loss.item():.4}\t"
+#           f"{cls_loss.item():.4}")
 
-    output_adv, logit_cls = D(gened_data)
-    adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
-    cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
-    print(f"{adv_loss.item():.4}\t"
-          f"{cls_loss.item():.4}")
-
-
-
-# train_data, test_data, gened_data = train_data.cpu(), test_data.cpu(), gened_data.cpu()
-# merge_image = torch.cat([train_data, test_data, gened_data], dim=0)
-# grid = make_grid(merge_image, nrow=10, normalize=True).permute(1,2,0).contiguous()
-# plt.imshow(grid)
-# plt.show()
-
-# cls_loss = ce_loss(logit_cls.view(-1, 10), onehot[target_label].repeat(60,1))
-#
-# print(adv_loss, cls_loss)
-#
-# grid = make_grid(gened_data.detach().cpu(), nrow=10, normalize=True).permute(1,2,0).contiguous()
-# plt.imshow(grid)
-# plt.show()
-
-# print(train_data[1])
-# print(test_data[1])
-
-#
-# # G.apply(weights_init)
-# # D.apply(weights_init)
-#
-# print(G)
-# print(D)
-#
-# # out = G(torch.rand((64, 100, 1, 1)).to(device))
-# # print(out.size())
-# #
-# # out = D(torch.rand(64, 1, 32, 32).to(device))
-# # print(out.size())
-#
-# # Binary cross entropy loss and optimizer
-# bce_loss = nn.BCELoss()
-# ce_loss = nn.CrossEntropyLoss()
-# g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate_g, betas=(0.5, 0.999))
-# d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d, betas=(0.5, 0.999))
-#
-# onehot = torch.eye(num_class).to(device).view(10,10,1,1)
-#
-# # Start training
-# total_step = len(loader_train)
-# for epoch in range(epochs):
-#     for i, (images, target) in enumerate(loader_train):
-#         _batch = images.size(0)
-#         # images = images.reshape(_batch, -1).to(device)
-#         images = images.to(device)
-#
-#         target = target.to(device)
-#         onehot_target = onehot[target]
-#
-#         real_labels = torch.ones(_batch, 1).to(device)
-#         fake_labels = torch.zeros(_batch, 1).to(device)
-#         z = torch.randn(_batch, noise_dim, 1, 1).to(device)  # mean==0, std==1
-#         z = torch.cat([z, onehot_target], dim=1)
-#
-#         # ================================================================== #
-#         #                      Train the discriminator                       #
-#         # ================================================================== #
-#
-#         # Compute BCE_Loss using real images where BCE_Loss(x, y): - y * log(D(x)) - (1-y) * log(1 - D(x))
-#         # Second term of the loss is always zero since real_labels == 1
-#         d_optimizer.zero_grad()
-#         d_real_adv_output, d_real_output_cls = D(images)
-#         d_real_adv_loss = bce_loss(d_real_adv_output.view(_batch, -1), real_labels)
-#
-#         d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
-#         # d_real_output_cls = d_real_output_cls.view(_batch, -1)
-#         d_real_cls_loss = ce_loss(d_real_output_cls, target)
-#
-#         real_score = d_real_adv_loss
-#
-#         # Compute BCELoss using fake images
-#         # First term of the loss is always zero since fake_labels == 0
-#
-#         fake_images = G(z)
-#
-#         d_fake_adv_output, d_fake_cls_output = D(fake_images.detach())
-#         d_fake_adv_loss = bce_loss(d_fake_adv_output.view(_batch, -1), fake_labels)
-#
-#         d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
-#         # d_fake_cls_output = d_fake_cls_output.view(_batch, -1)
-#         d_fake_cls_loss = ce_loss(d_fake_cls_output, target)
-#         fake_score = d_fake_adv_output
-#
-#         # Backprop and optimize
-#         d_loss = d_real_adv_loss + d_real_cls_loss + d_fake_adv_loss + d_fake_cls_loss
-#         # reset_grad()
-#         d_loss.backward()
-#         d_optimizer.step()
-#
-#         # ================================================================== #
-#         #                        Train the generator                         #
-#         # ================================================================== #
-#
-#         # Compute loss with fake images
-#         g_optimizer.zero_grad()
-#
-#         # z = torch.randn(_batch, noise_dim).to(device)
-#         # fake_images = G(z)
-#         g_adv_output, g_cls_output = D(fake_images)
-#         g_adv_loss = bce_loss(g_adv_output.view(_batch, -1), real_labels)
-#         g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
-#         # g_cls_output = g_cls_output.view(_batch, -1)
-#
-#         g_cls_loss = ce_loss(g_cls_output, target)
-#         g_loss = g_adv_loss + g_cls_loss
-#         gened_score = g_adv_output
-#
-#         # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
-#         # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
-#
-#         # Backprop and optimize
-#         # reset_grad()
-#         g_loss.backward()
-#         g_optimizer.step()
-#
-#         if (i + 1) % 200 == 0:
-#             print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
-#                   .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
-#                           real_score.mean().item(), fake_score.mean().item()))
-#
-#
-#     # result_images = denorm(G(torch.cat([fixed_noise, fixed_onehot], dim=1))).detach().cpu()
-#     result_images = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach().cpu()
-#     # result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
-#     result_images = make_grid(result_images, nrow=10, normalize=True).permute(1, 2, 0)
-#     # print(result_images.size())
-#     plt.imshow(result_images.numpy())
-#     plt.show()
-#
-#     # Save the model checkpoints
-#
-#     torch.save(G.state_dict(), weights_dir + f'G_{epoch}.ckpt')
-#     torch.save(D.state_dict(), weights_dir + f'D_{epoch}.ckpt')
-
-# Save real images
-# if (epoch + 1) == 1:
-#     images = images.reshape(images.size(0), 1, 28, 28)
-#     save_image(denorm(images), os.path.join(sample_dir, 'real_images.png'))
-
-# tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
-# tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
-# tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
-# tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
-#
-# result_images = denorm(G(fixed_noise))
-# result_images = result_images.reshape(result_images.size(0), 1, 28, 28)
-# tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=result_images)
-
-# Save sampled images
-# fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
-# save_image(denorm(fake_images), os.path.join(sample_dir, 'fake_images-{}.png'.format(epoch + 1)))
 
