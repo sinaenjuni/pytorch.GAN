@@ -468,24 +468,26 @@ batch_size = 64
 # print(noise[0, 72 :   ])
 
 
-def generator(stop_number):
-    num = 0
-    while True:
-        if num >= stop_number:
-            return
-        num += 2
-        yield num
+# def generator(stop_number):
+#     num = 0
+#     while True:
+#         if num >= stop_number:
+#             return
+#         num += 2
+#         yield num
+#
+#
+# def func(stop_number):
+#     gen = generator(stop_number)
+#     yield from gen
+#
+#
+# foo = func(10)
+# print(foo.__next__())
+# print(foo.__next__())
+# print(foo.__next__())
+# print(foo.__next__())
+# print(foo.__next__())
+# print(foo.__next__())
 
-
-def func(stop_number):
-    gen = generator(stop_number)
-    yield from gen
-
-
-foo = func(10)
-print(foo.__next__())
-print(foo.__next__())
-print(foo.__next__())
-print(foo.__next__())
-print(foo.__next__())
-print(foo.__next__())
+print(1e-06)

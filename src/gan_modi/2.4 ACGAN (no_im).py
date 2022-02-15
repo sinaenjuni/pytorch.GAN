@@ -15,10 +15,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # TensorBoard define
-# log_dir = '../../tb_logs/vanillaGAN/test3'
-# if not os.path.exists(log_dir):
-#     os.makedirs(log_dir)
-# tb = SummaryWriter(log_dir=log_dir)
+log_dir = '../../tb_logs/ACGAN/no_im'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+tb = SummaryWriter(log_dir=log_dir)
 
 # Hyper-parameters
 image_size = (1, 32, 32)
@@ -73,8 +73,8 @@ transform = transforms.Compose([
 mnist = IMBALANCEMNIST(root='../../data/',
                            train=True,
                            transform=transform,
-                           download=True,
-                           imb_factor=0.01)
+                           download=False,
+                           imb_factor=1)
 
 
 # Data loader
@@ -285,11 +285,18 @@ for epoch in range(epochs):
         g_loss.backward()
         g_optimizer.step()
 
-        if (i + 1) % 200 == 0:
-            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
-                  .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
-                          real_score.mean().item(), fake_score.mean().item()))
+        # if (i + 1) % 200 == 0:
+        #     print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
+        #           .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
+        #                   real_score.mean().item(), fake_score.mean().item()))
 
+    print(f'Epoch [{epoch + 1}/{epochs}], '
+          f'Step [{i + 1}/{total_step}], '
+          f'd_loss: {d_loss.item():.4f} '
+          f'({d_real_adv_loss.item():.4f} + {d_real_cls_loss.item():.4f} + {d_fake_adv_loss.item():.4f} + {d_fake_cls_loss.item():.4f}), '
+          f'g_loss: {g_loss.item():.4f} '
+          f'({g_adv_loss.item():.4} + {g_cls_loss.item():.4}), '
+          f'D(x): {real_score.mean().item():.2f}, D(G(z)): {fake_score.mean().item():.2f}')
 
     result_images = denorm(G(torch.cat([fixed_noise, fixed_onehot], dim=1))).detach().cpu()
     result_images = result_images.reshape(result_images.size(0), 1, 32, 32)

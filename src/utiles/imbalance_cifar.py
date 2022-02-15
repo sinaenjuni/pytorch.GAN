@@ -50,7 +50,9 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
             np.random.shuffle(idx)
             selec_idx = idx[:the_img_num]
             new_data.append(self.data[selec_idx, ...])
-            new_targets.extend([the_class, ] * the_img_num)
+            # new_targets.extend([the_class, ] * the_img_num)
+            new_targets.extend(targets_np[selec_idx])
+
         new_data = np.vstack(new_data)
         self.data = new_data
         self.targets = new_targets
