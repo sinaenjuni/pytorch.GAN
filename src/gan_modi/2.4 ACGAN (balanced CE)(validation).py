@@ -44,7 +44,7 @@ beta1 = 0.5
 beta2 = 0.999
 sample_dir = '../samples'
 
-target_label = 8
+target_label = 9
 
 # fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
 # fixed_noise = torch.randn(100, noise_dim, 1, 1).to(device)
@@ -95,7 +95,8 @@ dataset_train = IMBALANCEMNIST(root='../../data/',
 dataset_test = IMBALANCEMNIST(root='../../data/',
                            train=False,
                            transform=transform,
-                           download=False)
+                           download=False,
+                              imb_factor=1)
 
 # dataset = IMBALANCECIFAR10(root='../../data/',
 #                            train=True,
@@ -238,53 +239,49 @@ loader_test = torch.utils.data.DataLoader(dataset=dataset_test,
                                           batch_size=batch_size,
                                           sampler=select_sampler_test)
 
-train_data = iter(loader_train).__next__()[0].to(device)
-test_data = iter(loader_test).__next__()[0].to(device)
-gened_data = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach()
+
+print(f"Epoch\t"
+      f"Train adv\t"
+      f"Train cls\t"
+      f"Test adv\t"
+      f"Test cls\t"
+      f"Gened adv\t"
+      f"Gened cls")
+
+for i in range(200):
+    print(f"{i}", end='\t')
+    G.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ G_{i}.ckpt"))
+    D.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ D_{i}.ckpt"))
+
+    train_data = iter(loader_train).__next__()[0].to(device)
+    test_data = iter(loader_test).__next__()[0].to(device)
+    gened_data = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach()
+
+    images_dir = f'./images/ACGAN_balancedCE/{target_label}/'
+    if not os.path.exists(images_dir):
+        os.makedirs(images_dir)
+    save_image(make_grid(gened_data.detach().cpu(), nrow=10, normalize=True), fp=images_dir+f"{i}.png")
+    # grid = save_image(gened_data.detach().cpu(), nrow=10, normalize=True).permute(1,2,0).contiguous()
 
 
-print(train_data.size())
-print(test_data.size())
-print(gened_data.size())
+    output_adv, logit_cls = D(train_data)
+    adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
+    cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
+    print(f"{adv_loss.item():.4}\t"
+          f"{cls_loss.item():.4}", end='\t')
 
-# print(f"Epoch\t"
-#       f"Train adv\t"
-#       f"Train cls\t"
-#       f"Test adv\t"
-#       f"Test cls\t"
-#       f"Gened adv\t"
-#       f"Gened cls")
-#
-# for i in range(200):
-#     print(f"{i}", end='\t')
-#     G.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ G_{i}.ckpt"))
-#     D.load_state_dict(torch.load(f"./weights/ACGAN_balancedCE/ D_{i}.ckpt"))
-#
-#     images_dir = f'./images/ACGAN_balancedCE/{target_label}/'
-#     if not os.path.exists(images_dir):
-#         os.makedirs(images_dir)
-#     save_image(make_grid(gened_data.detach().cpu(), nrow=10, normalize=True), fp=images_dir+f"{i}.png")
-#     # grid = save_image(gened_data.detach().cpu(), nrow=10, normalize=True).permute(1,2,0).contiguous()
-#
-#
-#     output_adv, logit_cls = D(train_data)
-#     adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
-#     cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
-#     print(f"{adv_loss.item():.4}\t"
-#           f"{cls_loss.item():.4}", end='\t')
-#
-#
-#     output_adv, logit_cls = D(test_data)
-#     adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
-#     cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
-#     print(f"{adv_loss.item():.4}\t"
-#           f"{cls_loss.item():.4}", end='\t')
-#
-#
-#     output_adv, logit_cls = D(gened_data)
-#     adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
-#     cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
-#     print(f"{adv_loss.item():.4}\t"
-#           f"{cls_loss.item():.4}")
+
+    output_adv, logit_cls = D(test_data)
+    adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
+    cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
+    print(f"{adv_loss.item():.4}\t"
+          f"{cls_loss.item():.4}", end='\t')
+
+
+    output_adv, logit_cls = D(gened_data)
+    adv_loss = bce_loss(output_adv.view(-1, 1), adv_real_labels)
+    cls_loss = ce_loss(logit_cls.view(-1, 10), cls_target_labels)
+    print(f"{adv_loss.item():.4}\t"
+          f"{cls_loss.item():.4}")
 
 

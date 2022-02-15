@@ -66,19 +66,19 @@ transform = transforms.Compose([
 #                                    transform=transform,
 #                                    download=True)
 #
-# dataset = IMBALANCEMNIST(root='../../data/',
-#                            train=True,
-#                            transform=transform,
-#                            download=True,
-#                            imb_factor=0.01)
-
-dataset = IMBALANCECIFAR10(root='../../data/',
+dataset = IMBALANCEMNIST(root='../../data/',
                            train=True,
                            transform=transform,
                            download=True,
                            imb_factor=0.01)
 
-select_sampler = SelectSampler(data_source=dataset, shuffle=True, target_label=1)
+# dataset = IMBALANCECIFAR10(root='../../data/',
+#                            train=True,
+#                            transform=transform,
+#                            download=True,
+#                            imb_factor=0.01)
+
+select_sampler = SelectSampler(data_source=dataset, shuffle=True, target_label=9)
 
 # Data loader
 data_loader = torch.utils.data.DataLoader(dataset=dataset,
@@ -173,8 +173,8 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-G = Generator(nz=100, ngf=64, nc=3).to(device)
-D = Discriminator(nc=3, ndf=32).to(device)
+G = Generator(nz=100, ngf=64, nc=1).to(device)
+D = Discriminator(nc=1, ndf=32).to(device)
 
 G.apply(weights_init)
 D.apply(weights_init)
@@ -252,17 +252,17 @@ for epoch in range(epochs):
         g_optimizer.step()
 
         # if (i + 1) % 200 == 0:
-        print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
-              .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
-                      real_score.mean().item(), fake_score.mean().item()))
-    if (epoch+1) % 20 == 0:
+    print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
+          .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
+                  real_score.mean().item(), fake_score.mean().item()))
+    # if (epoch+1) % 20 == 0:
         # result_images = denorm(G(fixed_noise)).detach().cpu()
-        result_images = G(fixed_noise).detach().cpu()
-        # result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
-        result_images = make_grid(result_images, nrow=10, normalize=True).permute(1, 2, 0)
-        # print(result_images.size())
-        plt.imshow(result_images.numpy())
-        plt.show()
+    result_images = G(fixed_noise).detach().cpu()
+    # result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
+    result_images = make_grid(result_images, nrow=10, normalize=True).permute(1, 2, 0)
+    # print(result_images.size())
+    plt.imshow(result_images.numpy())
+    plt.show()
 
 # Save real images
 # if (epoch + 1) == 1:
