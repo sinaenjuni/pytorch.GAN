@@ -16,15 +16,15 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # TensorBoard define
-# log_dir = '../../tb_logs/vanillaGAN/test3'
-# if not os.path.exists(log_dir):
-#     os.makedirs(log_dir)
-# tb = SummaryWriter(log_dir=log_dir)
+log_dir = '../../tb_logs/ACGAN/balancedCE/'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+tb = SummaryWriter(log_dir=log_dir)
 
 # Save dir define
-weights_dir = './weights/ACGAN_balancedCE/ '
-if not os.path.exists(weights_dir):
-    os.makedirs(weights_dir)
+# weights_dir = './weights/ACGAN/balancedCE'
+# if not os.path.exists(weights_dir):
+#     os.makedirs(weights_dir)
 
 # Hyper-parameters
 image_size = (1, 32, 32)
@@ -296,24 +296,30 @@ for epoch in range(epochs):
         g_loss.backward()
         g_optimizer.step()
 
-        if (i + 1) % 200 == 0:
-            print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}'
-                  .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
-                          real_score.mean().item(), fake_score.mean().item()))
+    epoch += 1
+    print(f'Epoch [{epoch}/{epochs}], '
+          f'Step [{i + 1}/{total_step}], '
+          f'd_loss: {d_loss.item():.4f} '
+          f'({d_real_adv_loss.item():.4f} + {d_real_cls_loss.item():.4f} + {d_fake_adv_loss.item():.4f} + {d_fake_cls_loss.item():.4f}), '
+          f'g_loss: {g_loss.item():.4f} '
+          f'({g_adv_loss.item():.4} + {g_cls_loss.item():.4}), '
+          f'D(x): {real_score.mean().item():.2f}, D(G(z)): {fake_score.mean().item():.2f}')
 
+    tb.add_scalars(main_tag="discriminator", global_step=epoch,
+                   tag_scalar_dict={'d_loss': d_loss.item(),
+                                    'd_real_adv_loss': d_real_adv_loss.item(),
+                                    'd_real_cls_loss': d_real_cls_loss.item(),
+                                    'd_fake_adv_loss': d_fake_adv_loss.item(),
+                                    'd_fake_cls_loss': d_fake_cls_loss.item()})
 
-    # result_images = denorm(G(torch.cat([fixed_noise, fixed_onehot], dim=1))).detach().cpu()
+    tb.add_scalars(main_tag="generator", global_step=epoch,
+                   tag_scalar_dict={'g_loss': g_loss.item(),
+                                    'g_adv_loss': g_adv_loss.item(),
+                                    'g_cls_loss': g_cls_loss.item()})
+
     result_images = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach().cpu()
-    # result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
-    result_images = make_grid(result_images, nrow=10, normalize=True).permute(1, 2, 0)
-    # print(result_images.size())
-    plt.imshow(result_images.numpy())
-    plt.show()
-
-    # Save the model checkpoints
-
-    torch.save(G.state_dict(), weights_dir + f'G_{epoch}.ckpt')
-    torch.save(D.state_dict(), weights_dir + f'D_{epoch}.ckpt')
+    tb.add_image(tag='gen_img', global_step=epoch,
+                 img_tensor=make_grid(result_images, nrow=10, normalize=True))
 
 # Save real images
 # if (epoch + 1) == 1:
