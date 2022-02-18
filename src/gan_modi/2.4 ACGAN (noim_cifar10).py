@@ -6,6 +6,7 @@ from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
 from utiles.imbalance_mnist import IMBALANCEMNIST
+from utiles.imbalance_cifar import IMBALANCECIFAR10
 import matplotlib.pyplot as plt
 from functools import reduce
 import numpy as np
@@ -15,7 +16,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # TensorBoard define
-log_dir = '../../tb_logs/ACGAN/no_im'
+log_dir = '../../tb_logs/ACGAN/noim_cifar10'
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 tb = SummaryWriter(log_dir=log_dir)
@@ -68,21 +69,28 @@ transform = transforms.Compose([
 #                                    transform=transform,
 #                                    download=True)
 
-mnist = IMBALANCEMNIST(root='../../data/',
+# mnist = IMBALANCEMNIST(root='../../data/',
+#                        train=True,
+#                        transform=transform,
+#                        download=False,
+#                        imb_factor=1)
+
+
+dataset = IMBALANCECIFAR10(root='../../data/',
                        train=True,
                        transform=transform,
                        download=False,
                        imb_factor=1)
 
 # Data loader
-data_loader = torch.utils.data.DataLoader(dataset=mnist,
+data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 
-print(mnist.get_cls_num_list())
-print(mnist.num_per_cls_dict)
+print(dataset.get_cls_num_list())
+print(dataset.num_per_cls_dict)
 
-cls_num_list = torch.tensor(mnist.get_cls_num_list()).to(device)
+cls_num_list = torch.tensor(dataset.get_cls_num_list()).to(device)
 prior = cls_num_list / torch.sum(cls_num_list)
 inverse_prior, _ = torch.sort(prior, descending=False)
 
@@ -181,8 +189,8 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-G = Generator(nz=100, ngf=64, nc=1, num_class=num_class).to(device)
-D = Discriminator(nc=1, ndf=64, num_class=num_class).to(device)
+G = Generator(nz=100, ngf=64, nc=3, num_class=num_class).to(device)
+D = Discriminator(nc=3, ndf=64, num_class=num_class).to(device)
 
 G.apply(weights_init)
 D.apply(weights_init)

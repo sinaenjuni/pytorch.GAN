@@ -5,6 +5,7 @@ import torch.nn as nn
 from torchvision import transforms
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
+from utiles.imbalance_mnist import IMBALANCEMNIST
 from utiles.imbalance_cifar import IMBALANCECIFAR10
 import matplotlib.pyplot as plt
 from functools import reduce
@@ -15,13 +16,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # TensorBoard define
-# log_dir = '../../tb_logs/vanillaGAN/test3'
-# if not os.path.exists(log_dir):
-#     os.makedirs(log_dir)
-# tb = SummaryWriter(log_dir=log_dir)
+log_dir = '../../tb_logs/ACGAN/im_cifar10(uniform_label)'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+tb = SummaryWriter(log_dir=log_dir)
 
 # Hyper-parameters
-image_size = (3, 32, 32)
+image_size = (1, 32, 32)
 noise_dim = 100
 hidden_size = 256
 batch_size = 64
@@ -33,10 +34,8 @@ beta1 = 0.5
 beta2 = 0.999
 sample_dir = '../samples'
 
-
 # fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
 fixed_noise = torch.randn(100, noise_dim, 1, 1).to(device)
-
 
 index = torch.tensor([[i % 10] for i in range(100)])
 fixed_onehot = torch.zeros(100, 10).scatter_(1, index, 1).to(device).view(100, 10, 1, 1)
@@ -70,22 +69,28 @@ transform = transforms.Compose([
 #                                    transform=transform,
 #                                    download=True)
 
-mnist = IMBALANCECIFAR10(root='../../data/',
-                           train=True,
-                           transform=transform,
-                           download=False,
-                           imb_factor=0.01)
+# mnist = IMBALANCEMNIST(root='../../data/',
+#                        train=True,
+#                        transform=transform,
+#                        download=False,
+#                        imb_factor=1)
 
+
+dataset = IMBALANCECIFAR10(root='../../data/',
+                       train=True,
+                       transform=transform,
+                       download=False,
+                       imb_factor=0.01)
 
 # Data loader
-data_loader = torch.utils.data.DataLoader(dataset=mnist,
+data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                           batch_size=batch_size,
                                           shuffle=True)
 
-print(mnist.get_cls_num_list())
-print(mnist.num_per_cls_dict)
+print(dataset.get_cls_num_list())
+print(dataset.num_per_cls_dict)
 
-cls_num_list = torch.tensor(mnist.get_cls_num_list()).to(device)
+cls_num_list = torch.tensor(dataset.get_cls_num_list()).to(device)
 prior = cls_num_list / torch.sum(cls_num_list)
 inverse_prior, _ = torch.sort(prior, descending=False)
 
@@ -163,7 +168,6 @@ class Discriminator(nn.Module):
         self.cls_layer = nn.Sequential(
             nn.Conv2d(in_channels=ndf * 4, out_channels=num_class, kernel_size=4, stride=1, padding=0))
 
-
     def forward(self, x):
         out = self.input_layer(x)
         out = self.layer1(out)
@@ -206,7 +210,7 @@ ce_loss = nn.CrossEntropyLoss()
 g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate_g, betas=(0.5, 0.999))
 d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate_d, betas=(0.5, 0.999))
 
-onehot = torch.eye(num_class).to(device).view(10,10,1,1)
+onehot = torch.eye(num_class).to(device).view(10, 10, 1, 1)
 
 # Start training
 total_step = len(data_loader)
@@ -216,8 +220,9 @@ for epoch in range(epochs):
         # images = images.reshape(_batch, -1).to(device)
         images = images.to(device)
 
-        target = target.to(device)
-        onehot_target = onehot[target]
+        real_target = target.to(device)
+        uni_target = (torch.rand(_batch) * 10).type_as(torch.LongTensor()).to(device)
+        onehot_target = onehot[uni_target]
 
         real_labels = torch.ones(_batch, 1).to(device)
         fake_labels = torch.zeros(_batch, 1).to(device)
@@ -236,7 +241,7 @@ for epoch in range(epochs):
 
         # d_real_output_cls = d_real_output_cls.view(_batch, -1) + torch.log(prior + 1e-9)
         d_real_output_cls = d_real_output_cls.view(_batch, -1)
-        d_real_cls_loss = ce_loss(d_real_output_cls, target)
+        d_real_cls_loss = ce_loss(d_real_output_cls, real_target)
 
         real_score = d_real_adv_loss
 
@@ -250,7 +255,7 @@ for epoch in range(epochs):
 
         # d_fake_cls_output = d_fake_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
         d_fake_cls_output = d_fake_cls_output.view(_batch, -1)
-        d_fake_cls_loss = ce_loss(d_fake_cls_output, target)
+        d_fake_cls_loss = ce_loss(d_fake_cls_output, uni_target)
         fake_score = d_fake_adv_output
 
         # Backprop and optimize
@@ -273,7 +278,7 @@ for epoch in range(epochs):
         # g_cls_output = g_cls_output.view(_batch, -1) + torch.log(prior + 1e-9)
         g_cls_output = g_cls_output.view(_batch, -1)
 
-        g_cls_loss = ce_loss(g_cls_output, target)
+        g_cls_loss = ce_loss(g_cls_output, uni_target)
         g_loss = g_adv_loss + g_cls_loss
         gened_score = g_adv_output
 
@@ -290,7 +295,8 @@ for epoch in range(epochs):
         #           .format(epoch + 1, epochs, i + 1, total_step, d_loss.item(), g_loss.item(),
         #                   real_score.mean().item(), fake_score.mean().item()))
 
-    print(f'Epoch [{epoch + 1}/{epochs}], '
+    epoch += 1
+    print(f'Epoch [{epoch}/{epochs}], '
           f'Step [{i + 1}/{total_step}], '
           f'd_loss: {d_loss.item():.4f} '
           f'({d_real_adv_loss.item():.4f} + {d_real_cls_loss.item():.4f} + {d_fake_adv_loss.item():.4f} + {d_fake_cls_loss.item():.4f}), '
@@ -298,31 +304,47 @@ for epoch in range(epochs):
           f'({g_adv_loss.item():.4} + {g_cls_loss.item():.4}), '
           f'D(x): {real_score.mean().item():.2f}, D(G(z)): {fake_score.mean().item():.2f}')
 
-    result_images = denorm(G(torch.cat([fixed_noise, fixed_onehot], dim=1))).detach().cpu()
-    result_images = result_images.reshape(result_images.size(0), 3, 32, 32)
-    result_images = make_grid(result_images, nrow=10).permute(1, 2, 0)
+    tb.add_scalars(main_tag="discriminator", global_step=epoch,
+                   tag_scalar_dict={'d_loss': d_loss.item(),
+                                    'd_real_adv_loss': d_real_adv_loss.item(),
+                                    'd_real_cls_loss': d_real_cls_loss.item(),
+                                    'd_fake_adv_loss': d_fake_adv_loss.item(),
+                                    'd_fake_cls_loss': d_fake_cls_loss.item()})
+
+    tb.add_scalars(main_tag="generator", global_step=epoch,
+                   tag_scalar_dict={'g_loss': g_loss.item(),
+                                    'g_adv_loss': g_adv_loss.item(),
+                                    'g_cls_loss': g_cls_loss.item()})
+
+    result_images = G(torch.cat([fixed_noise, fixed_onehot], dim=1)).detach().cpu()
+    tb.add_image(tag='gen_img', global_step=epoch,
+                 img_tensor=make_grid(result_images, nrow=10, normalize=True))
+
+    # result_images = denorm(G(torch.cat([fixed_noise, fixed_onehot], dim=1))).detach().cpu()
+    # result_images = result_images.reshape(result_images.size(0), 1, 32, 32)
+    # result_images = make_grid(result_images, nrow=10).permute(1, 2, 0)
     # print(result_images.size())
-    plt.imshow(result_images.numpy())
-    plt.show()
+    # plt.imshow(result_images.numpy())
+    # plt.show()
 
-# Save real images
-# if (epoch + 1) == 1:
-#     images = images.reshape(images.size(0), 1, 28, 28)
-#     save_image(denorm(images), os.path.join(sample_dir, 'real_images.png'))
+    # Save real images
+    # if (epoch + 1) == 1:
+    #     images = images.reshape(images.size(0), 1, 28, 28)
+    #     save_image(denorm(images), os.path.join(sample_dir, 'real_images.png'))
 
-# tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
-# tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
-# tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
-# tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
-#
-# result_images = denorm(G(fixed_noise))
-# result_images = result_images.reshape(result_images.size(0), 1, 28, 28)
-# tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=result_images)
+    # tb.add_scalar(tag='d_loss', global_step=epoch+1, scalar_value=d_loss.item())
+    # tb.add_scalar(tag='g_loss', global_step=epoch+1, scalar_value=g_loss.item())
+    # tb.add_scalar(tag='real_score', global_step=epoch+1, scalar_value=real_score.mean().item())
+    # tb.add_scalar(tag='fake_score', global_step=epoch+1, scalar_value=fake_score.mean().item())
+    #
+    # result_images = denorm(G(fixed_noise))
+    # result_images = result_images.reshape(result_images.size(0), 1, 28, 28)
+    # tb.add_images(tag='gened_images', global_step=epoch+1, img_tensor=result_images)
 
-# Save sampled images
-# fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
-# save_image(denorm(fake_images), os.path.join(sample_dir, 'fake_images-{}.png'.format(epoch + 1)))
+    # Save sampled images
+    # fake_images = fake_images.reshape(fake_images.size(0), 1, 28, 28)
+    # save_image(denorm(fake_images), os.path.join(sample_dir, 'fake_images-{}.png'.format(epoch + 1)))
 
-# Save the model checkpoints
-# torch.save(G.state_dict(), 'G.ckpt')
-# torch.save(D.state_dict(), 'D.ckpt')
+    # Save the model checkpoints
+    # torch.save(G.state_dict(), 'G.ckpt')
+    # torch.save(D.state_dict(), 'D.ckpt')
