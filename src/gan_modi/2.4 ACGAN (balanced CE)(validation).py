@@ -44,7 +44,7 @@ beta1 = 0.5
 beta2 = 0.999
 sample_dir = '../samples'
 
-target_label = 9
+target_label = 6
 
 # fixed_noise = torch.randn(10, noise_dim, 1, 1).to(device).repeat(10, 1, 1, 1)
 # fixed_noise = torch.randn(100, noise_dim, 1, 1).to(device)

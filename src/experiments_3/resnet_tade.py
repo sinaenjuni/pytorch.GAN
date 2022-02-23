@@ -73,7 +73,7 @@ print(model)
 #     os.makedirs(SAVE_PATH)
 # torch.save(model.state_dict(), SAVE_PATH + f'model.pth')
 
-criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4)
+criterion = DiverseExpertLoss(cls_num_list=cls_num_list, tau=4).to(device)
 
 SAVE_PATH = f'../../weights/experiments3/resnet_tade/weight_control.pth'
 model.load_state_dict(torch.load(SAVE_PATH), strict=False)

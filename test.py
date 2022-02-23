@@ -490,4 +490,6 @@ batch_size = 64
 # print(foo.__next__())
 # print(foo.__next__())
 
-print(1e-06)
+# Device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print('device:', device)

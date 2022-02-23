@@ -28,13 +28,13 @@ print('device:', device)
 
 
 # Define hyper-parameters
-name = 'experiments2/Resnet_s/WGAN(aug)'
+name = 'TADE/Resnet_s(ciar10_p10_aug_WGAN-GP)/'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
 num_epochs = 200
 batch_size = 128
-imb_factor = 0.01
+imb_factor = 0.1
 
 learning_rate = 0.0002
 weight_decay = 5e-4

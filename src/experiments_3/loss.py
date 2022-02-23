@@ -242,15 +242,15 @@ class RIDELoss(nn.Module):
   
  
 class DiverseExpertLoss(nn.Module):
-    def __init__(self, cls_num_list=None,  max_m=0.5, s=30, tau=2):
+    def __init__(self, cls_num_list=None,  max_m=0.5, s=30, tau=2, device=torch.device('cuda')):
         super().__init__()
         self.base_loss = F.cross_entropy 
      
         prior = np.array(cls_num_list) / np.sum(cls_num_list)
-        self.prior = torch.tensor(prior).float().cuda()
+        self.prior = torch.tensor(prior).float().to(device)
         self.C_number = len(cls_num_list)  # class number
         self.s = s
-        self.tau = tau 
+        self.tau = tau
 
     def inverse_prior(self, prior): 
         value, idx0 = torch.sort(prior)
@@ -273,9 +273,9 @@ class DiverseExpertLoss(nn.Module):
  
         # Softmax loss for expert 1 
         loss += self.base_loss(expert1_logits, target)
-        
+
         # Balanced Softmax loss for expert 2 
-        expert2_logits = expert2_logits + torch.log(self.prior + 1e-9) 
+        expert2_logits = expert2_logits + torch.log(self.prior + 1e-9)
         loss += self.base_loss(expert2_logits, target)
         
         # Inverse Softmax loss for expert 3
