@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 name = 'experiments3/resnet_tade/'
 
-resnet_s_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_10.pth'
+resnet_s_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
 resnet_s_weight = torch.load(resnet_s_PATH)
 
 resnet_tade_PATH = "/home/sin/git/pytorch.GAN/weights/experiments3/Resnet_tade/classifier/model.pth"
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print(len(resnet_s_weight))
     print(len(resnet_tade_weight))
 
-    tade_layer = ["layer2", "layer3"]
+    tade_layer = ["layer1", "layer3"]
     t = "layer"
     # print(any(target in t for target in tade_layer))
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     SAVE_PATH = f'weights/{name}/'
     if not os.path.exists(SAVE_PATH):
         os.makedirs(SAVE_PATH)
-    torch.save(resnet_tade_weight, SAVE_PATH + f'weight_control.pth')
+    torch.save(modified_tade_weight, SAVE_PATH + f'weight_control.pth')
 
 
 
