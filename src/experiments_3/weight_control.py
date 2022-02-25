@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 name = 'experiments3/resnet_tade/'
 
-resnet_s_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
+resnet_s_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_50.pth'
 resnet_s_weight = torch.load(resnet_s_PATH)
 
 resnet_tade_PATH = "/home/sin/git/pytorch.GAN/weights/experiments3/Resnet_tade/classifier/model.pth"
