@@ -23,7 +23,7 @@ name = 'cifar_cls'
 tensorboard_path = f'../../tb_logs/ResNet_s/{name}'
 
 num_workers = 4
-num_epochs = 800
+num_epochs = 200
 batch_size = 128
 
 learning_rate = 0.001

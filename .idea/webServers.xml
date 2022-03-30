@@ -9,6 +9,13 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="e24f8405-3da9-4f63-945c-c90f2d23db83" name="TADE">
+        <fileTransfer accessType="SFTP" host="168.188.125.197" port="22" sshConfigId="f687df51-2c74-4e09-a2ff-c36de493a833" sshConfig="sin@168.188.125.197:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
   </component>
 </project>
