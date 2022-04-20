@@ -6,7 +6,7 @@ import os, sys
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset, Sampler
 from PIL import Image
-from utiles.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
+from datasets.imbalance_mnist import Imbalanced_MNIST
 
 
 class BalancedSampler(Sampler):
@@ -44,19 +44,20 @@ class BalancedSampler(Sampler):
                         self.buckets]) * self.bucket_num  # Ensures every instance has the chance to be visited in an epoch
 
 
-class ImbalanceCIFAR10DataLoader(DataLoader):
+class ImbalanceMNISTDataLoader(DataLoader):
     """
-    Imbalance Cifar10 Data Loader
+    Imbalance MNIST Data Loader
     """
 
     def __init__(self, data_dir, batch_size, shuffle=True, num_workers=1, training=True, balanced=False,
                  retain_epoch_size=True, imb_factor=0.01):
-        normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
-                                         std=[0.2023, 0.1994, 0.2010])
+        normalize = transforms.Normalize(mean=[0.5],
+                                         std=[0.5])
         train_trsfm = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
+            # transforms.RandomCrop(32, padding=4),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomRotation(15),
+            transforms.Resize(32),
             transforms.ToTensor(),
             normalize,
         ])
@@ -67,20 +68,20 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
         ])
 
         if training:
-            dataset = IMBALANCECIFAR10(data_dir, train=True, download=True, transform=train_trsfm, imb_factor=imb_factor)
-            val_dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=test_trsfm)  # test set
+            dataset = Imbalanced_MNIST(data_dir, download=True, transform=train_trsfm, imb_factor=imb_factor)
+            val_dataset = datasets.MNIST(data_dir, train=False, download=True, transform=test_trsfm)  # test set
         else:
-            dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=test_trsfm)  # test set
+            dataset = datasets.MNIST(data_dir, train=False, download=True, transform=test_trsfm)  # test set
             val_dataset = None
 
         self.dataset = dataset
         self.val_dataset = val_dataset
 
-        num_classes = len(np.unique(dataset.targets))
+        num_classes = len(np.unique(dataset.train_labels))
         assert num_classes == 10
 
         cls_num_list = [0] * num_classes
-        for label in dataset.targets:
+        for label in dataset.train_labels:
             cls_num_list[label] += 1
 
         self.cls_num_list = cls_num_list
@@ -88,7 +89,7 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
         if balanced:
             if training:
                 buckets = [[] for _ in range(num_classes)]
-                for idx, label in enumerate(dataset.targets):
+                for idx, label in enumerate(dataset.train_labels):
                     buckets[label].append(idx)
                 sampler = BalancedSampler(buckets, retain_epoch_size)
                 shuffle = False
@@ -118,29 +119,36 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from torchvision.utils import make_grid
 
-    loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
+    normalize = transforms.Normalize(mean=[0.5],
+                                     std=[0.5])
+    train_trsfm = transforms.Compose([
+        # transforms.RandomCrop(32, padding=4),
+        # transforms.RandomHorizontalFlip(),
+        # transforms.RandomRotation(15),
+        transforms.ToTensor(),
+        normalize,
+    ])
+
+    loader = ImbalanceMNISTDataLoader(data_dir='~/datasets/mnist/', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
-                                        imb_factor=0.01, balanced=True, retain_epoch_size=False)
+                                        imb_factor=0.01)
 
-
-    count = {i:0 for i in range(10)}
-    for image, label in loader:
-        for l in label.tolist():
-            # print(l)
-            count[l] += 1
-
-    print(count)
-
-
-    print(len(loader))
-    for idx, data, in enumerate(loader):
+    for idx, data in enumerate(loader):
         img, label = data
+        print(img)
+
+        if idx == 0:
+            print(img)
+        else:
+            break
         if idx == 1:
             break
         else:
-            grid = make_grid(img)
-            grid = (grid + 1) / 2
-            grid.clamp(0, 1)
+            print(img.size())
+            grid = make_grid(img, normalize=True)
+            print(grid.size())
+            # grid = (grid + 1) / 2
+            # grid.clamp(0, 1)
             print(grid.size())
             plt.imshow(grid.permute(1,2,0))
             plt.show()

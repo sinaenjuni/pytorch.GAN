@@ -26,14 +26,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 
+
 # Define hyper-parameters
-name = "pytorch.GAN/experiment2/gan/cifar10_0.1/LSGAN/"
-tensorboard_path = f'~/tb_logs/{name}'
+name = 'TADE/Resnet_s(ciar10_p10_aug_WGAN-GP)/'
+tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
-# num_epochs = 100
-gan_num_epochs = 100
-cls_num_epochs = 200
+num_epochs = 200
 batch_size = 128
 imb_factor = 0.1
 
@@ -61,20 +60,21 @@ def weights_init(m):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
+
 # Define Tensorboard
 tb = getTensorboard(tensorboard_path)
 
 
 
 # Define DataLoader
-train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data/',
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                               batch_size=batch_size,
                                               shuffle=True,
                                               num_workers=num_workers,
                                               training=True,
                                               imb_factor=imb_factor)
 
-test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data/',
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                               batch_size=batch_size,
                                               shuffle=False,
                                               num_workers=num_workers,
@@ -187,8 +187,7 @@ for epoch in range(num_epochs):
         real_output = D(images).view(batch, -1)
         # d_loss_real = criterion(outputs, real_labels)
         # loss_D_real = F.relu(1.-outputs).mean()
-        # loss_D_real = -(real_output.mean())
-        loss_D_real = torch.mean((real_output - 1) ** 2)
+        loss_D_real = -(real_output.mean())
         score_D_real = real_output.mean().item()
 
         # Compute BCELoss using fake images
@@ -200,15 +199,12 @@ for epoch in range(num_epochs):
         fake_output = D(fake_images.detach()).view(batch, -1)
         # d_loss_fake = criterion(outputs, fake_labels)
         # loss_D_fake = F.relu(1.+outputs).mean()
-        # loss_D_fake = fake_output.mean()
-        loss_D_fake = torch.mean(fake_output ** 2)
+        loss_D_fake = fake_output.mean()
         score_D_fake = fake_output.mean().item()
 
         # Backprop and optimize
         gradient_penalty = compute_gradient_penalty(D, images.data, fake_images.data)
-        # d_loss = loss_D_real + loss_D_fake + lambda_gp * gradient_penalty
-        d_loss = 0.5 * (loss_D_real + loss_D_fake).mean() + lambda_gp * gradient_penalty
-
+        d_loss = loss_D_real + loss_D_fake + lambda_gp * gradient_penalty
         # reset_grad()
         d_loss.backward()
         d_optimizer.step()
@@ -224,8 +220,7 @@ for epoch in range(num_epochs):
             z = torch.randn(batch, nz, 1, 1).to(device)
             fake_images = G(z)
             outputs = D(fake_images).view(batch, -1)
-            # g_loss = -outputs.mean()
-            g_loss = torch.mean((outputs - 1) ** 2)
+            g_loss = -outputs.mean()
             score_G = outputs.mean().item()
 
             # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))

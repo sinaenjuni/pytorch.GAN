@@ -6,7 +6,7 @@ import os, sys
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, Dataset, Sampler
 from PIL import Image
-from utiles.imbalance_cifar import IMBALANCECIFAR10, IMBALANCECIFAR100
+from datasets.imbalance_cifar import Imbalanced_CIFAR10, Imbalanced_CIFAR100
 
 
 class BalancedSampler(Sampler):
@@ -67,7 +67,7 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
         ])
 
         if training:
-            dataset = IMBALANCECIFAR10(data_dir, train=True, download=True, transform=train_trsfm, imb_factor=imb_factor)
+            dataset = Imbalanced_CIFAR10(data_dir, train=True, download=True, transform=train_trsfm, imb_factor=imb_factor)
             val_dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=test_trsfm)  # test set
         else:
             dataset = datasets.CIFAR10(data_dir, train=False, download=True, transform=test_trsfm)  # test set
@@ -76,11 +76,11 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
         self.dataset = dataset
         self.val_dataset = val_dataset
 
-        num_classes = len(np.unique(dataset.targets))
+        num_classes = len(np.unique(dataset.train_labels))
         assert num_classes == 10
 
         cls_num_list = [0] * num_classes
-        for label in dataset.targets:
+        for label in dataset.train_labels:
             cls_num_list[label] += 1
 
         self.cls_num_list = cls_num_list
@@ -88,7 +88,7 @@ class ImbalanceCIFAR10DataLoader(DataLoader):
         if balanced:
             if training:
                 buckets = [[] for _ in range(num_classes)]
-                for idx, label in enumerate(dataset.targets):
+                for idx, label in enumerate(dataset.train_labels):
                     buckets[label].append(idx)
                 sampler = BalancedSampler(buckets, retain_epoch_size)
                 shuffle = False
@@ -118,20 +118,9 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from torchvision.utils import make_grid
 
-    loader = ImbalanceCIFAR10DataLoader(data_dir='../../data', batch_size=64,
+    loader = ImbalanceCIFAR10DataLoader(data_dir='~/datasets/cifar10/', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
-                                        imb_factor=0.01, balanced=True, retain_epoch_size=False)
-
-
-    count = {i:0 for i in range(10)}
-    for image, label in loader:
-        for l in label.tolist():
-            # print(l)
-            count[l] += 1
-
-    print(count)
-
-
+                                        imb_factor=0.01)
     print(len(loader))
     for idx, data, in enumerate(loader):
         img, label = data
@@ -139,7 +128,7 @@ if __name__ == "__main__":
             break
         else:
             grid = make_grid(img)
-            grid = (grid + 1) / 2
+            grid = grid * 0.5 + 0.5
             grid.clamp(0, 1)
             print(grid.size())
             plt.imshow(grid.permute(1,2,0))

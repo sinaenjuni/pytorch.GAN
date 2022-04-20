@@ -25,17 +25,14 @@ import models.DCGAN_scaleup as Generator
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
-
 # Define hyper-parameters
-name = "pytorch.GAN/experiment2/gan/cifar10_0.1/LSGAN/"
+name = "pytorch.GAN/experiment2/cifar10_0.01_sampler/LSGAN/"
 tensorboard_path = f'~/tb_logs/{name}'
 
 num_workers = 4
-# num_epochs = 100
-gan_num_epochs = 100
-cls_num_epochs = 200
+num_epochs = 200
 batch_size = 128
-imb_factor = 0.1
+imb_factor = 0.01
 
 learning_rate = 0.0002
 weight_decay = 5e-4
@@ -67,14 +64,14 @@ tb = getTensorboard(tensorboard_path)
 
 
 # Define DataLoader
-train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data/',
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                               batch_size=batch_size,
                                               shuffle=True,
                                               num_workers=num_workers,
                                               training=True,
                                               imb_factor=imb_factor)
 
-test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data/',
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
                                               batch_size=batch_size,
                                               shuffle=False,
                                               num_workers=num_workers,
