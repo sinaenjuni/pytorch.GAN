@@ -1,17 +1,19 @@
 import os
-
+import logging
 import numpy as np
-import torch
-from torchvision.utils import make_grid
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-import torchvision
-from torchvision import transforms, datasets
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import seaborn as sns
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
+import torchvision
+from torchvision.utils import make_grid
+from torchvision import transforms, datasets
 
 from torchsummaryX import summary
 
@@ -21,21 +23,29 @@ from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 from models.resnet_s_D import resnet32
 import models.DCGAN_scaleup as Generator
 
+
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
-
 # Define hyper-parameters
-name = "pytorch.GAN/experiment2/gan/cifar10_0.1/LSGAN/"
-tensorboard_path = f'~/tb_logs/{name}'
+name = "pytorch.GAN/experiment2/gan/cifar10_0.01_LSGAN/"
+tensorboard_path = f"/home/sin/tb_logs/{name}"
+logging_path = f"/home/sin/logging/{name}"
+weight_path = f"/home/sin/weights/{name}"
+
+if not os.path.exists(tensorboard_path):
+    os.makedirs(tensorboard_path)
+if not os.path.exists(logging_path):
+    os.makedirs(logging_path)
+if not os.path.exists(weight_path):
+    os.makedirs(weight_path)
 
 num_workers = 4
 # num_epochs = 100
-gan_num_epochs = 100
-cls_num_epochs = 200
+num_epochs = 100
 batch_size = 128
-imb_factor = 0.1
+imb_factor = 0.01
 
 learning_rate = 0.0002
 weight_decay = 5e-4
@@ -72,7 +82,9 @@ train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data/',
                                               shuffle=True,
                                               num_workers=num_workers,
                                               training=True,
-                                              imb_factor=imb_factor)
+                                              imb_factor=imb_factor,
+                                              balanced=True,
+                                              retain_epoch_size=False)
 
 test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data/',
                                               batch_size=batch_size,
@@ -135,48 +147,18 @@ d_optimizer = torch.optim.Adam(D.parameters(), lr=learning_rate, betas=(beta1, b
 g_optimizer = torch.optim.Adam(G.parameters(), lr=learning_rate, betas=(beta1, beta2))
 
 
-
-def compute_gradient_penalty(D, real_samples, fake_samples):
-    # real_samples = real_samples.reshape(real_samples.size(0), 1, 32, 32).to(device)
-    # fake_samples = fake_samples.reshape(fake_samples.size(0), 1, 32, 32).to(device)
-
-    """Calculates the gradient penalty loss for WGAN GP"""
-    # Random weight term for interpolation between real and fake samples
-    alpha = torch.rand(real_samples.size(0), 1, 1, 1).to(device)
-    # Get random interpolation between real and fake samples
-    interpolates = (alpha * real_samples.data + ((1 - alpha) * fake_samples.data)).requires_grad_(True)
-    # d_interpolates = D(interpolates.reshape(real_samples.size(0), -1))
-    d_interpolates = D(interpolates)
-
-    weights = torch.ones(d_interpolates.size()).to(device)
-    # Get gradient w.r.t. interpolates
-    gradients = torch.autograd.grad(
-        outputs=d_interpolates,
-        inputs=interpolates,
-        grad_outputs=weights,
-        create_graph=True,
-        retain_graph=True,
-        only_inputs=True,
-    )[0]
-
-    gradients = gradients.view(gradients.size(0), -1)
-    gradients2L2norm = torch.sqrt(torch.sum(gradients ** 2, dim=1))
-    gradient_penalty = torch.mean(( gradients2L2norm - 1 ) ** 2)
-    return gradient_penalty
-
-
-
 # Training model
 total_step = len(train_data_loader)
 for epoch in range(num_epochs):
-    for i, (images, _) in enumerate(train_data_loader):
-        # images = images.reshape(batch_size, -1).to(device)
-        batch = images.size(0)
-        images = images.to(device)
+    for i, (real_images, _) in enumerate(train_data_loader):
+        # real_images = real_images.reshape(batch_size, -1).to(device)
+        batch = real_images.size(0)
+        real_images = real_images.to(device)
 
         # Create the labels which are later used as input for the BCE loss
         real_labels = torch.ones((batch,) ).to(device)
         fake_labels = torch.zeros((batch,) ).to(device)
+        z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
 
         # Labels shape is (batch_size, 1): [batch_size, 1]
         # ================================================================== #
@@ -184,30 +166,31 @@ for epoch in range(num_epochs):
         # ================================================================== #
         d_optimizer.zero_grad()
 
-        real_output = D(images).view(batch, -1)
+        real_output = D(real_images).view(batch, -1)
         # d_loss_real = criterion(outputs, real_labels)
         # loss_D_real = F.relu(1.-outputs).mean()
         # loss_D_real = -(real_output.mean())
-        loss_D_real = torch.mean((real_output - 1) ** 2)
+        loss_D_real = 0.5 * torch.mean((real_output - 1) ** 2)
         score_D_real = real_output.mean().item()
 
         # Compute BCELoss using fake images
         # First term of the loss is always zero since fake_labels == 0
         # z = torch.randn(batch_size, latent_size).to(device) # mean==0, std==1
-        z = torch.randn(batch, nz, 1, 1).to(device) # mean==0, std==1
         fake_images = G(z)
-
         fake_output = D(fake_images.detach()).view(batch, -1)
+
         # d_loss_fake = criterion(outputs, fake_labels)
         # loss_D_fake = F.relu(1.+outputs).mean()
         # loss_D_fake = fake_output.mean()
-        loss_D_fake = torch.mean(fake_output ** 2)
+        loss_D_fake = 0.5 * torch.mean(fake_output ** 2)
         score_D_fake = fake_output.mean().item()
 
+        d_loss = loss_D_real + loss_D_fake
+
         # Backprop and optimize
-        gradient_penalty = compute_gradient_penalty(D, images.data, fake_images.data)
+        # gradient_penalty = compute_gradient_penalty(D, images.data, fake_images.data)
         # d_loss = loss_D_real + loss_D_fake + lambda_gp * gradient_penalty
-        d_loss = 0.5 * (loss_D_real + loss_D_fake).mean() + lambda_gp * gradient_penalty
+        # d_loss = 0.5 * (loss_D_real + loss_D_fake).mean() + lambda_gp * gradient_penalty
 
         # reset_grad()
         d_loss.backward()
@@ -217,25 +200,24 @@ for epoch in range(num_epochs):
         #                        Train the generator                         #
         # ================================================================== #
 
-        if i % n_critic == 0:
-            g_optimizer.zero_grad()
+        g_optimizer.zero_grad()
 
-            # Compute loss with fake images
-            z = torch.randn(batch, nz, 1, 1).to(device)
-            fake_images = G(z)
-            outputs = D(fake_images).view(batch, -1)
-            # g_loss = -outputs.mean()
-            g_loss = torch.mean((outputs - 1) ** 2)
-            score_G = outputs.mean().item()
+        # Compute loss with fake images
+        z = torch.randn(batch, nz, 1, 1).to(device)
+        fake_images = G(z)
+        outputs = D(fake_images).view(batch, -1)
+        # g_loss = -outputs.mean()
+        g_loss = 0.5 * torch.mean((outputs - 1) ** 2)
+        score_G = outputs.mean().item()
 
-            # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
-            # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
-            # g_loss = criterion(outputs, real_labels)
+        # We train G to maximize log(D(G(z)) instead of minimizing log(1-D(G(z)))
+        # For the reason, see the last paragraph of section 3. https://arxiv.org/pdf/1406.2661.pdf
+        # g_loss = criterion(outputs, real_labels)
 
-            # Backprop and optimize
-            # reset_grad()
-            g_loss.backward()
-            g_optimizer.step()
+        # Backprop and optimize
+        # reset_grad()
+        g_loss.backward()
+        g_optimizer.step()
 
         if (i + 1) % 10 == 0:
             print('Epoch [{}/{}], Step [{}/{}], d_loss: {:.4f}, g_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f} / {:.2f}'
@@ -280,11 +262,8 @@ for epoch in range(num_epochs):
 
 
     # Save the model checkpoints
-    SAVE_PATH = f'../../weights/{name}/'
-    if not os.path.exists(SAVE_PATH):
-        os.makedirs(SAVE_PATH)
-    torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
-    torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')
+    torch.save(G.state_dict(), weight_path + f'G_{epoch+1}.pth')
+    torch.save(D.state_dict(), weight_path + f'D_{epoch+1}.pth')
 
 
 

@@ -1,17 +1,19 @@
 import os
-
+import logging
 import numpy as np
-import torch
-from torchvision.utils import make_grid
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-import torchvision
-from torchvision import transforms, datasets
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import seaborn as sns
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
+import torchvision
+from torchvision.utils import make_grid
+from torchvision import transforms, datasets
 
 from torchsummaryX import summary
 
@@ -21,20 +23,29 @@ from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 from models.resnet_s_D import resnet32
 import models.DCGAN_scaleup as Generator
 
+
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
-
-
 # Define hyper-parameters
-name = 'TADE/Resnet_s(ciar10_p10_aug_WGAN-GP)/'
-tensorboard_path = f'../../tb_logs/{name}'
+name = "pytorch.GAN/experiment2/gan/cifar10_0.01_sampler_WGAN/"
+tensorboard_path = f"/home/sin/tb_logs/{name}"
+logging_path = f"/home/sin/logging/{name}"
+weight_path = f"/home/sin/weights/{name}"
+
+if not os.path.exists(tensorboard_path):
+    os.makedirs(tensorboard_path)
+if not os.path.exists(logging_path):
+    os.makedirs(logging_path)
+if not os.path.exists(weight_path):
+    os.makedirs(weight_path)
+
 
 num_workers = 4
-num_epochs = 200
+num_epochs = 100
 batch_size = 128
-imb_factor = 0.1
+imb_factor = 0.01
 
 learning_rate = 0.0002
 weight_decay = 5e-4
@@ -67,14 +78,17 @@ tb = getTensorboard(tensorboard_path)
 
 
 # Define DataLoader
-train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data',
                                               batch_size=batch_size,
                                               shuffle=True,
                                               num_workers=num_workers,
                                               training=True,
-                                              imb_factor=imb_factor)
+                                              imb_factor=imb_factor,
+                                               balanced=True,
+                                               retain_epoch_size=False
+                                               )
 
-test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data',
                                               batch_size=batch_size,
                                               shuffle=False,
                                               num_workers=num_workers,
@@ -275,11 +289,8 @@ for epoch in range(num_epochs):
 
 
     # Save the model checkpoints
-    SAVE_PATH = f'../../weights/{name}/'
-    if not os.path.exists(SAVE_PATH):
-        os.makedirs(SAVE_PATH)
-    torch.save(G.state_dict(), SAVE_PATH + f'G_{epoch+1}.pth')
-    torch.save(D.state_dict(), SAVE_PATH + f'D_{epoch+1}.pth')
+    torch.save(G.state_dict(), weight_path + f'G_{epoch+1}.pth')
+    torch.save(D.state_dict(), weight_path + f'D_{epoch+1}.pth')
 
 
 
