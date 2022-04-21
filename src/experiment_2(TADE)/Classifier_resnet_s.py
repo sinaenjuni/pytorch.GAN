@@ -23,7 +23,7 @@ name = 'experiments2/Resnet_s/classifier'
 tensorboard_path = f'../../tb_logs/{name}'
 
 num_workers = 4
-num_epochs = 200
+num_epochs = 400
 batch_size = 128
 imb_factor = 0.01
 num_class = 10
@@ -42,14 +42,14 @@ print('device:', device)
 tb = getTensorboard(tensorboard_path)
 
 # Define DataLoader
-train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+train_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data',
                                               batch_size=batch_size,
                                               shuffle=True,
                                               num_workers=num_workers,
                                               training=True,
                                               imb_factor=imb_factor)
 
-test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='../../data',
+test_data_loader = ImbalanceCIFAR10DataLoader(data_dir='~/data',
                                               batch_size=batch_size,
                                               shuffle=False,
                                               num_workers=num_workers,
@@ -67,6 +67,7 @@ cls_num_list = train_data_loader.cls_num_list
 model = resnet32(num_classes=10, use_norm=True).to(device)
 print(model)
 
+# SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
 SAVE_PATH = f'../../weights/experiments2/Resnet_s/GAN/D_200.pth'
 model.load_state_dict(torch.load(SAVE_PATH), strict=False)
 
