@@ -29,7 +29,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('device:', device)
 
 # Define hyper-parameters
-name = "pytorch.GAN/experiment2/gan/cifar10_0.01_sampler_LSGAN/"
+name = "pytorch.GAN/experiment2/gan/cifar10_0.1_sampler_LSGAN/"
 tensorboard_path = f"/home/sin/tb_logs/{name}"
 logging_path = f"/home/sin/logging/{name}"
 weight_path = f"/home/sin/weights/{name}"
@@ -43,9 +43,9 @@ if not os.path.exists(weight_path):
 
 num_workers = 4
 # num_epochs = 100
-num_epochs = 100
+num_epochs = 200
 batch_size = 128
-imb_factor = 0.01
+imb_factor = 0.1
 
 learning_rate = 0.0002
 weight_decay = 5e-4

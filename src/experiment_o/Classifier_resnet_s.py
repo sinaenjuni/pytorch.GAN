@@ -101,12 +101,15 @@ def lr_lambda(epoch):
     print(lr)
     return lr
 
-for target_gen in target_epoch:
-    logger.addHandler(logging.FileHandler(logging_path + f'./{target_gen}_logging.txt'))
+for target_idx in range(len(target_epoch)):
+    if target_idx != 0:
+        logger.removeHandler(logging.FileHandler(logging_path + f'./{target_epoch[target_idx - 1]}_logging.txt'))
+    logger.addHandler(logging.FileHandler(logging_path + f'./{target_epoch[target_idx]}_logging.txt'))
+
 
     # Define model
     model = resnet32(num_classes=10, use_norm=True).to(device)
-    model.load_state_dict(torch.load(target_weight_path + f"D_{target_gen}.pth"), strict=False)
+    model.load_state_dict(torch.load(target_weight_path + f"D_{target_epoch[target_idx]}.pth"), strict=False)
 
     optimizer = torch.optim.SGD(model.parameters(),
                                 momentum=momentum,
