@@ -78,10 +78,10 @@ class Restnet_classifier(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("MLP_MNIST_Classifier")
-        parser.add_argument('--learning_rate', type=float, default=0.0001)
+        parser.add_argument('--learning_rate', type=float, default=0.1)
         parser.add_argument('--momentum', type=float, default=0.0001)
-        parser.add_argument('--weight_decay', type=float, default=0.0001)
-        parser.add_argument('--weight_decay', type=float, default=0.0001)
+        parser.add_argument('--weight_decay', type=float, default=5e-4)
+        parser.add_argument('--nesterov', type=bool, default=True)
         return parent_parser
 
 import os
