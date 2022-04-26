@@ -1,21 +1,108 @@
+import pytorch_lightning as pl
+from sklearn.metrics import confusion_matrix
+
+
+class Restnet_classifier(pl.LightningModule):
+    def __init__(self):
+        self.model = resnet18(num_classes=10).to(device)
+        self.model.fc = nn.Linear(in_features=512, out_features=10).to(device)
+
+        self.criterion = nn.CrossEntropyLoss()
+
+    def forward(self, x):
+        return self.model(x)
+
+    def training_step(self, batch, batch_idx):
+        image, label = batch
+        logit = self(image)
+        loss = self.criterion(logit, label)
+        pred = logit.argmax(-1)
+
+        train_cm = confusion_matrix(pred, label)
+        train_acc = train_cm.trace() / train_cm.sum()
+        train_acc_per_cls = train_cm.diagonal() / train_cm.sum(0)
+
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log_dict({"train_acc":train_acc,
+                       "train_acc_per_cls": " ".join([f"({idx}) {acc:.4}" for idx, acc in enumerate(train_acc_per_cls)])})
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        image, label = batch
+        logit = self(image)
+        loss = self.criterion(label, logit)
+        pred = logit.argmax(-1)
+
+        cm = confusion_matrix(pred, label)
+        val_acc = cm.trace() / cm.sum()
+        val_acc_per_cls = cm.diagonal() / cm.sum(0)
+
+        metrics = {"val_loss":loss,
+                   "val_acc": val_acc,
+                   "val_acc_per_cls": " ".join([f"({idx}) {acc:.4}" for idx, acc in enumerate(val_acc_per_cls)])}
+        self.log_dict(metrics)
+        return metrics
+
+    # def validation_step_end(self, val_step_outputs):
+    #     val_acc = val_step_outputs['val_acc'].cpu()
+    #     val_loss = val_step_outputs['val_loss'].cpu()
+    #
+    #     self.log('validation_acc', val_acc, prog_bar=True)
+    #     self.log('validation_loss', val_loss, prog_bar=True)
+
+    def test_step(self, batch, batch_idx):
+        image, label = batch
+        label_logits = self(image)
+        loss = self.criterion(label_logits, label.long())
+
+        cm = confusion_matrix(pred, label)
+        val_acc = cm.trace() / cm.sum()
+        val_acc_per_cls = cm.diagonal() / cm.sum(0)
+
+        metrics = {"test_loss":loss,
+                   "test_acc": val_acc,
+                   "test_acc_per_cls": " ".join([f"({idx}) {acc:.4}" for idx, acc in enumerate(val_acc_per_cls)])}
+        self.log_dict(metrics)
+        return metrics
+
+    def configure_optimizers(self):
+        # optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = torch.optim.SGD(self.parameters(),
+                                    momentum=self.hparams.momentum,
+                                    lr=self.hparams.learning_rate,
+                                    weight_decay=self.hparams.weight_dacay,
+                                    nesterov=nesterov)
+
+        return optimizer
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("MLP_MNIST_Classifier")
+        parser.add_argument('--learning_rate', type=float, default=0.0001)
+        parser.add_argument('--momentum', type=float, default=0.0001)
+        parser.add_argument('--weight_decay', type=float, default=0.0001)
+        parser.add_argument('--weight_decay', type=float, default=0.0001)
+        return parent_parser
+
 import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from sklearn.metrics import confusion_matrix
 
 from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 # from models.resnet_s import resnet32
-from models.resnet import resnet18
+# from models.resnet import resnet18
+from torchvision.models import resnet18
 from models.resnet import resnet34
 
 
 # Define hyper-parameters
 # name = "pytorch.GAN/experiment2/resnet_s/cifar10_0.01_sampler_LSGAN/"
-name = "pytorch.GAN/experiment2/resnet18/cifar10_0.1"
+name = "pytorch.GAN/experiment2/resnet18(ori)/cifar10_0.1"
 tensorboard_path = f"/home/sin/tb_logs/{name}"
 logging_path = f"/home/sin/logging/{name}"
 weight_path = f"/home/sin/weights/{name}"
@@ -111,14 +198,11 @@ def lr_lambda(epoch):
 
 
     # Define model
-model = resnet18(num_classes=10).to(device)
+
+
     # model.load_state_dict(torch.load(target_weight_path + f"D_{target_epoch[target_idx]}.pth"), strict=False)
 
-optimizer = torch.optim.SGD(model.parameters(),
-                            momentum=momentum,
-                            lr=learning_rate,
-                            weight_decay=weight_decay,
-                            nesterov=nesterov)
+
 lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
 train_best_loss = 0.0

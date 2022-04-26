@@ -10,10 +10,10 @@ def cifar(image_size=32, train=True, batch_size=64) -> DataLoader:
         dataset = CIFAR10
 
         if train:
-            dataset = dataset(root='../datasets/cifar10/', download=True, train=True, transform=transform)
+            dataset = dataset(root='../data_module/cifar10/', download=True, train=True, transform=transform)
             return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
         else:
-            test_dataset = dataset(root='../datasets/cifar10/', download=True, train=False, transform=transform)
+            test_dataset = dataset(root='../data_module/cifar10/', download=True, train=False, transform=transform)
             return DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
 
@@ -24,10 +24,10 @@ def mnist(image_size=32, train=True, batch_size=64) -> DataLoader:
                          ])
     dataset = MNIST
     if train:
-        dataset = dataset(root='../datasets/mnist/', download=True, train=True, transform=transform)
+        dataset = dataset(root='../data_module/mnist/', download=True, train=True, transform=transform)
         return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
     else:
-        test_dataset = dataset(root='../datasets/mnist/', download=True, train=False, transform=transform)
+        test_dataset = dataset(root='../data_module/mnist/', download=True, train=False, transform=transform)
         return DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 
 
@@ -38,9 +38,9 @@ def fashion(image_size=32, train=True, batch_size=64) -> DataLoader:
                          ])
     dataset = FashionMNIST
     if train:
-        dataset = dataset(root='../datasets/fashionMNIST/', download=True, train=True, transform=transform)
+        dataset = dataset(root='../data_module/fashionMNIST/', download=True, train=True, transform=transform)
         return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
     else:
-        test_dataset = dataset(root='../datasets/fashionMNIST/', download=True, train=False, transform=transform)
+        test_dataset = dataset(root='../data_module/fashionMNIST/', download=True, train=False, transform=transform)
         return DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
 

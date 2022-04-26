@@ -75,7 +75,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torchvision.transforms import *
 
-    # dataset = MNIST(root="~/datasets/mnist", train=True, transform=None, target_transform=None, download=False)
+    # dataset = MNIST(root="~/data_module/mnist", train=True, transform=None, target_transform=None, download=False)
     # select_sampler = SelectSampler(dataset, 1, False)
     #
     # data_loader = DataLoader(dataset, batch_size=1, shuffle=False, sampler=select_sampler)

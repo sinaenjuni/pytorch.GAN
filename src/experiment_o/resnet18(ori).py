@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 
@@ -9,13 +10,14 @@ from utiles.tensorboard import getTensorboard
 from utiles.data import getSubDataset
 from utiles.imbalance_cifar10_loader import ImbalanceCIFAR10DataLoader
 # from models.resnet_s import resnet32
-from models.resnet import resnet18
+# from models.resnet import resnet18
+from torchvision.models import resnet18
 from models.resnet import resnet34
 
 
 # Define hyper-parameters
 # name = "pytorch.GAN/experiment2/resnet_s/cifar10_0.01_sampler_LSGAN/"
-name = "pytorch.GAN/experiment2/resnet18/cifar10_0.1"
+name = "pytorch.GAN/experiment2/resnet18(ori)/cifar10_0.1"
 tensorboard_path = f"/home/sin/tb_logs/{name}"
 logging_path = f"/home/sin/logging/{name}"
 weight_path = f"/home/sin/weights/{name}"
@@ -112,6 +114,8 @@ def lr_lambda(epoch):
 
     # Define model
 model = resnet18(num_classes=10).to(device)
+model.fc = nn.Linear(in_features=512, out_features=10).to(device)
+
     # model.load_state_dict(torch.load(target_weight_path + f"D_{target_epoch[target_idx]}.pth"), strict=False)
 
 optimizer = torch.optim.SGD(model.parameters(),

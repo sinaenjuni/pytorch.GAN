@@ -167,7 +167,7 @@ import torch.nn.functional as F
 
 
 # import torchvision
-# class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
+# class IMBALANCECIFAR10(torchvision.data_module.CIFAR10):
 #     def __init__(self):
 #         root="data"
 #         train=True

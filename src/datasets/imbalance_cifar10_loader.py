@@ -118,7 +118,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from torchvision.utils import make_grid
 
-    loader = ImbalanceCIFAR10DataLoader(data_dir='~/datasets/cifar10/', batch_size=64,
+    loader = ImbalanceCIFAR10DataLoader(data_dir='~/data_module/cifar10/', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
                                         imb_factor=0.01)
     print(len(loader))

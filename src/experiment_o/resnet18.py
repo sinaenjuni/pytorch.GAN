@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 
@@ -112,6 +113,8 @@ def lr_lambda(epoch):
 
     # Define model
 model = resnet18(num_classes=10).to(device)
+model.fc = nn.Linear(in_features=512, out_features=10).to(device)
+
     # model.load_state_dict(torch.load(target_weight_path + f"D_{target_epoch[target_idx]}.pth"), strict=False)
 
 optimizer = torch.optim.SGD(model.parameters(),

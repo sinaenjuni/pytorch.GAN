@@ -129,7 +129,7 @@ if __name__ == "__main__":
         normalize,
     ])
 
-    dataset = Imbalanced_FashionMNIST(root='~/datasets/fashion_mnist/',
+    dataset = Imbalanced_FashionMNIST(root='~/data_module/fashion_mnist/',
                                       imb_type='exp',
                                       imb_factor=0.01,
                                       rand_number=0,
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
 
 
-    loader = ImbalanceFASHIONMNISTDataLoader(data_dir='~/datasets/fashion_mnist/', batch_size=64,
+    loader = ImbalanceFASHIONMNISTDataLoader(data_dir='~/data_module/fashion_mnist/', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
                                         imb_factor=0.01)
 

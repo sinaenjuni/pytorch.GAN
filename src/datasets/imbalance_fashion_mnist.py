@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
 
     # trainloader = iter(trainset)
-    # datasets, label = next(trainloader)
+    # data_module, label = next(trainloader)
 
     # import pdb;
     # pdb.set_trace()

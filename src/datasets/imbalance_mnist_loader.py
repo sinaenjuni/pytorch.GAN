@@ -129,7 +129,7 @@ if __name__ == "__main__":
         normalize,
     ])
 
-    loader = ImbalanceMNISTDataLoader(data_dir='~/datasets/mnist/', batch_size=64,
+    loader = ImbalanceMNISTDataLoader(data_dir='~/data_module/mnist/', batch_size=64,
                                         shuffle=True, num_workers=4, training=True,
                                         imb_factor=0.01)
 

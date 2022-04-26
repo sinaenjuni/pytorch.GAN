@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     count = [0 for _ in range(10)]
     for data in dataloader:
-        # print(datasets[1])
+        # print(data_module[1])
         for i in data[1]:
             count[i] += 1
     print(count)

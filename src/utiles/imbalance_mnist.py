@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # for i in np.unique(train_labels):
     #     print(i, len(train_labels[train_labels == i]))
 
-    # print(len(torchvision.datasets.MNIST(root='../../data', train=True, download=True)))
+    # print(len(torchvision.data_module.MNIST(root='../../data', train=True, download=True)))
 
     # trainloader = iter(trainset)
     # data, label = next(trainloader)
