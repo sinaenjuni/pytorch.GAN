@@ -42,9 +42,11 @@ class BalancedSampler(Sampler):
 
 
 class ImbalancedMNISTDataModule(pl.LightningDataModule):
-    def __init__(self, image_size=32, batch_size=128, imb_factor=0.01, balanced=False, retain_epoch_size=False):
+    def __init__(self, image_size, batch_size, imb_factor, balanced, retain_epoch_size):
         super().__init__()
+        self.save_hyperparameters()
 
+        # self.image_size = image_size
         self.batch_size = batch_size
         self.balanced = balanced
         self.retain_epoch_size = retain_epoch_size
@@ -78,6 +80,7 @@ class ImbalancedMNISTDataModule(pl.LightningDataModule):
 
         print(self.train_cls_num_list)
 
+
     def train_dataloader(self):
         if self.balanced:
             buckets = [[] for _ in range(self.num_classes)]
@@ -85,15 +88,15 @@ class ImbalancedMNISTDataModule(pl.LightningDataModule):
                 buckets[label].append(idx)
             sampler = BalancedSampler(buckets, self.retain_epoch_size)
 
-            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False, sampler=sampler)
+            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False, sampler=sampler, num_workers=4)
         else:
-            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, sampler = None)
+            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, sampler = None, num_workers=4)
 
     def val_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4)
 
 
 
