@@ -17,6 +17,13 @@
             </list>
           </settings>
         </remote-mappings>
+        <remote-mappings server-id="python@sftp://sin@168.188.125.197:22/home/sin/.conda/envs/TADE/bin/python3.7">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/sin/git/pytorch.GAN" />
+            </list>
+          </settings>
+        </remote-mappings>
       </list>
     </list>
   </component>

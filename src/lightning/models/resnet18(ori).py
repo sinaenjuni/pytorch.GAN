@@ -69,8 +69,7 @@ class Resnet_classifier(pl.LightningModule):
         cm, acc, acc_per_cls = accNaccPerCls(pred, label, self.hparams.num_class)
 
         metrics = {"val_loss":loss,
-                   "val_acc": acc,
-                   "hp_metric": acc}
+                   "val_acc": acc}
         metrics.update({ f"cls_{idx}" : acc for idx, acc in enumerate(acc_per_cls)})
 
         self.log_dict(metrics)
@@ -82,8 +81,7 @@ class Resnet_classifier(pl.LightningModule):
         #
         # self.log('validation_acc', val_acc, prog_bar=True)
         # self.log('validation_loss', val_loss, prog_bar=True)
-
-        self.log_dict(val_step_outputs,)
+        self.log_dict(val_step_outputs)
 
 
     def test_step(self, batch, batch_idx):
@@ -99,6 +97,7 @@ class Resnet_classifier(pl.LightningModule):
         metrics.update({ f"cls_{idx}" : acc for idx, acc in enumerate(acc_per_cls)})
         self.log_dict(metrics)
         return metrics
+
 
     def configure_optimizers(self):
         # optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
@@ -176,10 +175,10 @@ def cli_main():
     )
     logger = TensorBoardLogger(save_dir="tb_logs",
                                name="resnet18_original_cifar10_0.01",
-                               default_hp_metric=False
+                               default_hp_metric=True
                                )
 
-    trainer = pl.Trainer(max_epochs=200,
+    trainer = pl.Trainer(max_epochs=1,
                          # callbacks=[EarlyStopping(monitor='val_loss')],
                          callbacks=[checkpoint_callback],
                          strategy=DDPStrategy(find_unused_parameters=False),
@@ -191,7 +190,8 @@ def cli_main():
     trainer.fit(model, datamodule=dm)
 
     result = trainer.test(model, dataloaders=dm.test_dataloader())
-
+    logger.log_hyperparams(args, metrics={"test_acc" : result[0]["test_acc"]})
+    logger.log_metrics(metrics={"test_acc" : result[0]["test_acc"]})
     print(result)
 
 
