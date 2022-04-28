@@ -12,11 +12,12 @@ class Imbalanced_CIFAR10(torchvision.datasets.CIFAR10):
                  transform=None, target_transform=None,
                  download=False, reverse=False):
         super(Imbalanced_CIFAR10, self).__init__(root, train, transform, target_transform, download)
-        np.random.seed(rand_number)
-        img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor, reverse)
-        self.gen_imbalanced_data(img_num_list)
-        self.reverse = reverse
-
+        if train:
+            np.random.seed(rand_number)
+            img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor, reverse)
+            self.gen_imbalanced_data(img_num_list)
+            self.reverse = reverse
+        
     def get_img_num_per_cls(self, cls_num, imb_type, imb_factor, reverse):
         img_max = len(self.data) / cls_num
         img_num_per_cls = []

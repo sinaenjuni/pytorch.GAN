@@ -42,7 +42,7 @@ class BalancedSampler(Sampler):
 
 
 class ImbalancedMNISTDataModule(pl.LightningDataModule):
-    def __init__(self, image_size, batch_size, imb_factor, balanced, retain_epoch_size):
+    def __init__(self, image_size, batch_size, imb_factor, balanced, retain_epoch_size, augmentation):
         super().__init__()
         self.save_hyperparameters()
 
@@ -53,13 +53,22 @@ class ImbalancedMNISTDataModule(pl.LightningDataModule):
 
         normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
                                          std=[0.2023, 0.1994, 0.2010])
-        train_transform = transforms.Compose([
-            transforms.Resize(image_size),
-            transforms.RandomCrop(image_size, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ToTensor(),
-            normalize])
+        if augmentation:
+            train_transform = transforms.Compose([
+                transforms.Resize(image_size),
+                transforms.RandomCrop(image_size, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomRotation(15),
+                transforms.ToTensor(),
+                normalize])
+        else:
+            train_transform = transforms.Compose([
+                transforms.Resize(image_size),
+                # transforms.RandomCrop(image_size, padding=4),
+                # transforms.RandomHorizontalFlip(),
+                # transforms.RandomRotation(15),
+                transforms.ToTensor(),
+                normalize])
         print("Train dataloader")
         print(train_transform)
 
@@ -103,9 +112,24 @@ class ImbalancedMNISTDataModule(pl.LightningDataModule):
 if __name__ == "__main__":
     data_loader = ImbalancedMNISTDataModule(image_size=32, batch_size=128, imb_factor=0.01, balanced=False, retain_epoch_size=False)
 
-    # count = {i:0 for i in range(10)}
-    # for image, label in train_dataloader:
-    #     for l in label.tolist():
-            # count[l] += 1
-    #
-    # print(count)
+
+    count = {i:0 for i in range(10)}
+    for image, label in data_loader.train_dataloader():
+        for l in label.tolist():
+            count[l] += 1
+
+    print(count)
+
+    count = {i:0 for i in range(10)}
+    for image, label in data_loader.val_dataloader():
+        for l in label.tolist():
+            count[l] += 1
+
+    print(count)
+
+    count = {i:0 for i in range(10)}
+    for image, label in data_loader.test_dataloader():
+        for l in label.tolist():
+            count[l] += 1
+
+    print(count)
