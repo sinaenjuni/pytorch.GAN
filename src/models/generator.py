@@ -2,23 +2,51 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import spectral_norm
 
-import pytorch_lightning as pl
+def linear(in_features, out_features, bias=True):
+    return nn.Linear(in_features=in_features, out_features=out_features, bias=bias)
 
-class Generator(nn.Module):
-    def getLayer(self, num_input, num_outout, kernel_size, stride, padding, sn, bn):
-        layer = []
-        if sn:
-            layer.append(spectral_norm(nn.ConvTranspose2d(in_channels=num_input,
-                                       out_channels=num_outout,
-                                       kernel_size=kernel_size,
-                                       stride=stride,
-                                       padding=padding)))
-        else:
-            layer.append(nn.ConvTranspose2d(in_channels=num_input,
-                                            out_channels=num_outout,
+def snlinear(in_features, out_features, bias=True):
+    return spectral_norm(nn.Linear(in_features=in_features, out_features=out_features, bias=bias), eps=1e-6)
+
+def batchnorm_2d(in_features, eps=1e-4, momentum=0.1, affine=True):
+    return nn.BatchNorm2d(in_features, eps=eps, momentum=momentum, affine=affine, track_running_stats=True)
+
+def conv3x3(in_planes, out_planes, stride=1):
+    "3x3 convolution with padding"
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
+                     padding=1, bias=False)
+
+
+def deconv2d(in_channels, out_channels, kernel_size, stride=2, padding=0, dilation=1, groups=1, bias=True):
+    return nn.ConvTranspose2d(in_channels=in_channels,
+                              out_channels=out_channels,
+                              kernel_size=kernel_size,
+                              stride=stride,
+                              padding=padding,
+                              dilation=dilation,
+                              groups=groups,
+                              bias=bias)
+
+def sndeconv2d(in_channels, out_channels, kernel_size, stride=2, padding=0, dilation=1, groups=1, bias=True):
+    return spectral_norm(nn.ConvTranspose2d(in_channels=in_channels,
+                                            out_channels=out_channels,
                                             kernel_size=kernel_size,
                                             stride=stride,
-                                            padding=padding))
+                                            padding=padding,
+                                            dilation=dilation,
+                                            groups=groups,
+                                            bias=bias),
+                         eps=1e-6)
+
+
+class Generator(nn.Module):
+    def getLayer(self, deconv, num_input, num_outout, kernel_size, stride, padding, bn):
+        layer = []
+        layer.append(deconv(in_channels=num_input,
+                            out_channels=num_outout,
+                            kernel_size=kernel_size,
+                            stride=stride,
+                            padding=padding))
         if bn:
             layer.append(nn.BatchNorm2d(num_outout))
 
@@ -26,20 +54,20 @@ class Generator(nn.Module):
         layer = nn.Sequential(*layer)
         return layer
 
-    def __init__(self, image_size, image_channel, std_channel, latent_dim, sn, bn):
+    def __init__(self, linear, deconv, image_size, image_channel, std_channel, latent_dim, bn):
         super(Generator, self).__init__()
 
         self.image_size = image_size // 2 ** 4
         self.std_channel = std_channel
 
-        self.layer1 = nn.Sequential(nn.Linear(in_features=latent_dim,
-                                              out_features = self.image_size * self.image_size * std_channel * 4),
+        self.layer1 = nn.Sequential(linear(in_features=latent_dim,
+                                          out_features = self.image_size * self.image_size * std_channel * 4),
                                     nn.LeakyReLU(negative_slope=0.2, inplace=True))  # 2*2*256
 
-        self.layer2 = self.getLayer(std_channel * 4, std_channel * 2, kernel_size=4, stride=2, padding=1, sn=sn, bn=bn)   # 4*4*128
-        self.layer3 = self.getLayer(std_channel * 2, std_channel * 2, kernel_size=4, stride=2, padding=1, sn=sn, bn=bn)   # 8*8*128
-        self.layer4 = self.getLayer(std_channel * 2, std_channel * 1, kernel_size=4, stride=2, padding=1, sn=sn, bn=bn)   # 16*16*64
-        self.layer5 = nn.Sequential(nn.ConvTranspose2d(std_channel*1, image_channel, kernel_size=4, stride=2, padding=1))   # 32*32*3
+        self.layer2 = self.getLayer(deconv, std_channel * 4, std_channel * 2, kernel_size=4, stride=2, padding=1, bn=bn)   # 4*4*128
+        self.layer3 = self.getLayer(deconv, std_channel * 2, std_channel * 2, kernel_size=4, stride=2, padding=1, bn=bn)   # 8*8*128
+        self.layer4 = self.getLayer(deconv, std_channel * 2, std_channel * 1, kernel_size=4, stride=2, padding=1, bn=bn)   # 16*16*64
+        self.layer5 = deconv(std_channel*1, image_channel, kernel_size=4, stride=2, padding=1)                             # 32*32*3
 
     def forward(self, x):
         x = self.layer1(x)
@@ -60,7 +88,7 @@ if __name__ == "__main__":
         if isinstance(m, nn.ConvTranspose2d):
             nn.init.normal_(m.weight.data, std=0.02)
 
-    D = Generator(image_size=32, image_channel=3, std_channel=64, latent_dim=128, sn=False, bn=True)
+    D = Generator(linear=snlinear, deconv=sndeconv2d, image_size=32, image_channel=3, std_channel=64, latent_dim=128, bn=True)
     D.apply(initialize_weights)
 
     inputs = torch.randn((1, 128))

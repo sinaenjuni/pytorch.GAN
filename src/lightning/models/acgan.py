@@ -5,9 +5,10 @@ from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics.functional import confusion_matrix
 from torch.optim import SGD, Adam
 from models.resnet import resnet18, resnet34
-from models.generator import Generator
+from models.generator import Generator, linear, snlinear, deconv2d, sndeconv2d
 
 import pytorch_lightning as pl
+
 
 def accNaccPerCls(pred, label, num_class):
     cm = torch.nan_to_num(confusion_matrix(pred, label, num_classes=num_class))
@@ -18,10 +19,10 @@ def accNaccPerCls(pred, label, num_class):
 
 
 class FcNAdvModuel(nn.Module):
-    def __init__(self):
+    def __init__(self, linear):
         super(FcNAdvModuel, self).__init__()
-        self.fc = spectral_norm(nn.Linear(in_features=512, out_features=10))
-        self.adv = nn.Linear(in_features=512, out_features=1)
+        self.fc = linear(in_features=512, out_features=10)
+        self.adv = linear(in_features=512, out_features=1)
 
     def forward(self, x):
         return self.fc(x), self.adv(x)
@@ -30,8 +31,8 @@ class ACGAN(pl.LightningModule):
     def __init__(self,
                  model,
                  num_class,
-                 sn,
                  bn,
+                 sp,
                  learning_rate,
                  image_size,
                  image_channel,
@@ -41,16 +42,21 @@ class ACGAN(pl.LightningModule):
         super(ACGAN, self).__init__()
         self.save_hyperparameters()
 
-        G = Generator(image_size, image_channel, std_channel, latent_dim, sn, bn)
+        G = Generator(linear=linear,
+                      deconv=deconv2d,
+                      image_size=image_size,
+                      image_channel=image_channel,
+                      std_channel=std_channel,
+                      latent_dim=latent_dim,
+                      bn=bn)
 
         if model == 'resnet18':
             self.D = resnet18(num_classes=num_class, sp=sp)
         elif model == 'resnet34':
             self.D = resnet34(num_classes=num_class, sp=sp)
 
+        self.D.fc = FcNAdvModuel(linear=linear)
 
-
-        # self.model.fc = nn.Linear(in_features=512, out_features=10)
         self.criterion = nn.CrossEntropyLoss()
 
 
@@ -152,7 +158,7 @@ class ACGAN(pl.LightningModule):
 
 
 if __name__ == "__main__":
-    print("ture")
+    model = ACGAN()
 
 
 
