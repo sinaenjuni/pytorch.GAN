@@ -5,6 +5,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics.functional import confusion_matrix
 from torch.optim import SGD, Adam
 from models.resnet import resnet18, resnet34
+from models.generator import Generator
 
 import pytorch_lightning as pl
 
@@ -15,28 +16,39 @@ def accNaccPerCls(pred, label, num_class):
 
     return cm, acc, acc_per_cls
 
+
+class FcNAdvModuel(nn.Module):
+    def __init__(self):
+        super(FcNAdvModuel, self).__init__()
+        self.fc = spectral_norm(nn.Linear(in_features=512, out_features=10))
+        self.adv = nn.Linear(in_features=512, out_features=1)
+
+    def forward(self, x):
+        return self.fc(x), self.adv(x)
+
 class ACGAN(pl.LightningModule):
     def __init__(self,
                  model,
                  num_class,
-                 sp,
+                 sn,
+                 bn,
                  learning_rate,
-                 momentum,
-                 weight_decay,
-                 nesterov,
-                 warmup_epoch,
-                 step1,
-                 step2,
-                 gamma,
+                 image_size,
+                 image_channel,
+                 std_channel,
+                 latent_dim,
                  **kwargs):
-        super(Resnet_classifier, self).__init__()
+        super(ACGAN, self).__init__()
         self.save_hyperparameters()
 
+        G = Generator(image_size, image_channel, std_channel, latent_dim, sn, bn)
 
         if model == 'resnet18':
-            self.model = resnet18(num_classes=num_class, sp=sp)
+            self.D = resnet18(num_classes=num_class, sp=sp)
         elif model == 'resnet34':
-            self.model = resnet34(num_classes=num_class, sp=sp)
+            self.D = resnet34(num_classes=num_class, sp=sp)
+
+
 
         # self.model.fc = nn.Linear(in_features=512, out_features=10)
         self.criterion = nn.CrossEntropyLoss()

@@ -30,7 +30,7 @@ def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1, sp=False):
     """3x3 convolution with padding"""
     if sp:
         return spectral_norm(nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, groups=groups, bias=False, dilation=dilation))
+                     padding=dilation, groups=groups, bias=False, dilation=dilation), eps=1e-6)
     else:
         return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=dilation, groups=groups, bias=False, dilation=dilation)
@@ -39,7 +39,7 @@ def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1, sp=False):
 def conv1x1(in_planes, out_planes, stride=1, sp=False):
     """1x1 convolution"""
     if sp:
-        return spectral_norm(nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False))
+        return spectral_norm(nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False), eps=1e-6)
     else:
         return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 

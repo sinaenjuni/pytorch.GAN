@@ -1,28 +1,33 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils import spectral_norm
 
+import pytorch_lightning as pl
 
-class Decoder_module(nn.Module):
-    def getLayer(self, num_input, num_outout, kernel_size, stride, padding, norm):
-        tconv = nn.ConvTranspose2d(in_channels=num_input,
+class Generator(nn.Module):
+    def getLayer(self, num_input, num_outout, kernel_size, stride, padding, sn, bn):
+        layer = []
+        if sn:
+            layer.append(spectral_norm(nn.ConvTranspose2d(in_channels=num_input,
                                        out_channels=num_outout,
                                        kernel_size=kernel_size,
                                        stride=stride,
-                                       padding=padding)
-        if norm == 'bn':
-            layer = nn.Sequential(tconv,
-                          nn.BatchNorm2d(num_outout),
-                          nn.LeakyReLU(negative_slope=0.2, inplace=True))
-        elif norm == 'sn':
-            layer = nn.Sequential(tconv,
-                                  nn.LeakyReLU(negative_slope=0.2, inplace=True))
+                                       padding=padding)))
         else:
-            layer = nn.Sequential(tconv,
-                                  nn.LeakyReLU(negative_slope=0.2, inplace=True))
+            layer.append(nn.ConvTranspose2d(in_channels=num_input,
+                                            out_channels=num_outout,
+                                            kernel_size=kernel_size,
+                                            stride=stride,
+                                            padding=padding))
+        if bn:
+            layer.append(nn.BatchNorm2d(num_outout))
+
+        layer.append(nn.LeakyReLU(negative_slope=0.2, inplace=True))
+        layer = nn.Sequential(*layer)
         return layer
 
-    def __init__(self, image_size, image_channel, std_channel, latent_dim, norm):
-        super(Decoder_module, self).__init__()
+    def __init__(self, image_size, image_channel, std_channel, latent_dim, sn, bn):
+        super(Generator, self).__init__()
 
         self.image_size = image_size // 2 ** 4
         self.std_channel = std_channel
@@ -31,9 +36,9 @@ class Decoder_module(nn.Module):
                                               out_features = self.image_size * self.image_size * std_channel * 4),
                                     nn.LeakyReLU(negative_slope=0.2, inplace=True))  # 2*2*256
 
-        self.layer2 = self.getLayer(std_channel*4, std_channel*2, kernel_size=4, stride=2, padding=1, norm=norm)   # 4*4*128
-        self.layer3 = self.getLayer(std_channel*2, std_channel*2, kernel_size=4, stride=2, padding=1, norm=norm)   # 8*8*128
-        self.layer4 = self.getLayer(std_channel*2, std_channel*1, kernel_size=4, stride=2, padding=1, norm=norm)   # 16*16*64
+        self.layer2 = self.getLayer(std_channel * 4, std_channel * 2, kernel_size=4, stride=2, padding=1, sn=sn, bn=bn)   # 4*4*128
+        self.layer3 = self.getLayer(std_channel * 2, std_channel * 2, kernel_size=4, stride=2, padding=1, sn=sn, bn=bn)   # 8*8*128
+        self.layer4 = self.getLayer(std_channel * 2, std_channel * 1, kernel_size=4, stride=2, padding=1, sn=sn, bn=bn)   # 16*16*64
         self.layer5 = nn.Sequential(nn.ConvTranspose2d(std_channel*1, image_channel, kernel_size=4, stride=2, padding=1))   # 32*32*3
 
     def forward(self, x):
@@ -55,7 +60,7 @@ if __name__ == "__main__":
         if isinstance(m, nn.ConvTranspose2d):
             nn.init.normal_(m.weight.data, std=0.02)
 
-    D = Decoder_module(image_size=64, image_channel=3, std_channel=64, latent_dim=128, norm='bn')
+    D = Generator(image_size=32, image_channel=3, std_channel=64, latent_dim=128, sn=False, bn=True)
     D.apply(initialize_weights)
 
     inputs = torch.randn((1, 128))

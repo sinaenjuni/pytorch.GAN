@@ -145,7 +145,7 @@ class Resnet_classifier(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("model")
-        parser.add_argument("--model", default='resnet18', type=str)
+        parser.add_argument("--model", default='resnet34', type=str)
         parser.add_argument("--num_class", default=10, type=int)
         parser.add_argument("--sp", default=False, type=bool)
 
