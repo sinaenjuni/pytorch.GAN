@@ -97,20 +97,20 @@ class ImbalancedMNISTDataModule(pl.LightningDataModule):
                 buckets[label].append(idx)
             sampler = BalancedSampler(buckets, self.retain_epoch_size)
 
-            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False, sampler=sampler, num_workers=4)
+            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=False, sampler=sampler, num_workers=4, persistent_workers=True)
         else:
-            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, sampler = None, num_workers=4)
+            return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, sampler = None, num_workers=4, persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4, persistent_workers=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=4, persistent_workers=True)
 
 
 
 if __name__ == "__main__":
-    data_loader = ImbalancedMNISTDataModule(image_size=32, batch_size=128, imb_factor=0.01, balanced=False, retain_epoch_size=False)
+    data_loader = ImbalancedMNISTDataModule(image_size=32, batch_size=128, imb_factor=0.01, balanced=True, retain_epoch_size=False, augmentation=False)
 
 
     count = {i:0 for i in range(10)}

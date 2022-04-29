@@ -10,11 +10,22 @@ from torchmetrics.functional import accuracy, confusion_matrix
 dataset = CIFAR10("~/data")
 print(dataset.data)
 
+inputs = torch.rand((10, 3, 64, 64))
 
-model = resnet18(sp=True)
+x = inputs
+model = resnet18()
+for module in list(model.children())[:-2]:
+    print("="*30)
+    print(module)
+    y = module(x)
+    print(y.size())
+    x = y
 
 
+
+model = nn.Sequential(*list(resnet18().children())[:-3])
 print(model)
+print(model(inputs).size())
 
 model.fc = nn.Linear(in_features=512, out_features=10)
 print(model)
@@ -41,10 +52,9 @@ model.fc = FcNAdvModuel()
 
 
 
-inputs = torch.rand((1, 3, 64, 64))
 outputs = model(inputs)
-print(outputs[0].size())
+# print(outputs[0].size())
 
-for name, parma in model.named_parameters():
-    print(name)
+# for name, parma in model.named_parameters():
+#     print(name)
 

@@ -27,34 +27,26 @@ def d_loss_function(real_logit, fake_logit):
     # fake_loss = F.binary_cross_entropy_with_logits(fake_logit, torch.zeros_like(fake_logit))
     real_loss = F.relu(1. - real_logit).mean()
     fake_loss = F.relu(1. + fake_logit).mean()
-    d_loss = real_loss + fake_loss
-    return d_loss
 
-def d_cls_loss_function(real_logit, fake_logit, real_label, fake_label):
-    real_loss = F.cross_entropy(real_logit, real_label)
-    fake_loss = F.cross_entropy(fake_logit, fake_label)
     d_loss = real_loss + fake_loss
     return d_loss
 
 def g_loss_function(fake_logit):
     # g_loss = F.binary_cross_entropy_with_logits(fake_logit, torch.ones_like(fake_logit))
     g_loss = -fake_logit.mean()
-    return g_loss
 
-def g_cls_loss_function(fake_logit, fake_label):
-    f_loss = F.cross_entropy(fake_logit, fake_label)
-    return f_loss
+    return g_loss
 
 
 class FcNAdvModuel(nn.Module):
     def __init__(self, linear, num_classes):
         super(FcNAdvModuel, self).__init__()
-        self.cls = linear(in_features=512, out_features=num_classes)
+        # self.cls = linear(in_features=512, out_features=num_classes)
         self.adv = linear(in_features=512, out_features=1)
 
     def forward(self, x):
-        return self.adv(x), self.cls(x)
-        # return self.adv(x)
+        # return self.adv(x), self.cls(x)
+        return self.adv(x)
 
 class ACGAN(pl.LightningModule):
     def __init__(self,
@@ -78,7 +70,6 @@ class ACGAN(pl.LightningModule):
                       image_size=image_size,
                       image_channel=image_channel,
                       std_channel=std_channel,
-                               num_classes=num_classes,
                       latent_dim=latent_dim,
                       bn=bn)
         else:
@@ -102,8 +93,8 @@ class ACGAN(pl.LightningModule):
 
         # self.cls = nn.CrossEntropyLoss()
 
-    def forward(self, x, y):
-        return self.G(x, y)
+    def forward(self, x):
+        return self.G(x)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         real_image, real_label = batch
@@ -111,34 +102,21 @@ class ACGAN(pl.LightningModule):
         # train discriminator
         if optimizer_idx == 0:
             noise = torch.randn(real_image.size(0), 128).cuda()
-            fake_label = (torch.rand(real_image.size(0), 1) * 10).long().cuda()
-
-            fake_image = self(noise, fake_label)
+            fake_image = self(noise)
             self.logger.experiment.add_images(tag="images", img_tensor=fake_image.detach().cpu(),
                                               global_step=self.current_epoch)
-            real_adv_logit, real_cls_logit = self.D(real_image)
-            fake_adv_logit, fake_cls_logit = self.D(fake_image.detach())
-
-            d_adv_loss = d_loss_function(real_adv_logit, fake_adv_logit)
-            d_cls_loss = d_cls_loss_function(real_cls_logit, fake_cls_logit, real_label, fake_label)
-            d_loss = d_adv_loss + d_cls_loss
-
-            return {"loss" : d_loss}
+            real_logit = self.D(real_image)
+            fake_logit = self.D(fake_image.detach())
+            d_loss = d_loss_function(real_logit, fake_logit)
+            return {"loss" : d_loss, "d_loss":d_loss}
 
         # train generator
         if optimizer_idx == 1:
             noise = torch.randn(real_image.size(0), 128).cuda()
-            fake_label = (torch.rand(real_image.size(0), 1) * 10).long().cuda()
-
             fake_image = self(noise)
-            # fake_logit = self.D(fake_image)
-
-            fake_adv_logit, fake_cls_logit = self.D(fake_image)
-            g_adv_loss = g_loss_function(fake_adv_logit)
-            g_cls_loss = g_cls_loss_function(fake_cls_logit, fake_label)
-            g_loss = g_adv_loss + g_cls_loss
-
-            return {"loss": g_loss}
+            fake_logit = self.D(fake_image)
+            g_loss = g_loss_function(fake_logit)
+            return {"loss": g_loss, "g_loss":g_loss}
 
 
     def training_epoch_end(self, output):
@@ -237,26 +215,28 @@ def cli_main():
     pl.seed_everything(1234)  # 다른 환경에서도 동일한 성능을 보장하기 위한 random seed 초기화
 
     parser = ArgumentParser()
+    parser = ACGAN.add_model_specific_args(parser)
+
     parser.add_argument("--augmentation", default=True, type=bool)
     parser.add_argument("--batch_size", default=128, type=int)
-    parser.add_argument("--imb_factor", default=0.1, type=float)
+    parser.add_argument("--imb_factor", default=0.01, type=float)
     parser.add_argument("--balanced", default=False, type=bool)
     parser.add_argument("--retain_epoch_size", default=False, type=bool)
     parser.add_argument('--epoch', type=int, default=200)
 
-
-    parser = ACGAN.add_model_specific_args(parser)
     parser = pl.Trainer.add_argparse_args(parser)
-
     args = parser.parse_args('')
+
+    
+
     dm = ImbalancedMNISTDataModule.from_argparse_args(args)
 
     model = ACGAN(**vars(args))
-    # summary(model, x=torch.rand(10, 128))
+    summary(model, x=torch.rand(10, 128))
 
 
 
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(filename="{epoch:d}",
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(filename="{epoch:d}_{loss/val:.4}_{acc/val:.4}",
         verbose=True, every_n_epochs=20
         # save_last=True,
         # save_top_k=1,
