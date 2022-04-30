@@ -181,7 +181,31 @@ class ACGAN(pl.LightningModule):
 
         self.log_dict(metrics, logger=True)
 
+    def test_step(self, batch, batch_idx):
+        image, label = batch
+        # logit = self(image)
+        adc_logit, cls_logit = self.D(image)
 
+        loss = g_cls_loss_function(cls_logit, label)
+        pred = cls_logit.argmax(-1)
+        return {"loss": loss, "pred": pred, "label": label}
+
+    def test_epoch_end(self, output):
+        loss = torch.stack([x['loss'] for x in output]).mean()
+        pred = torch.cat([x['pred'] for x in output])
+        label = torch.cat([x['label'] for x in output])
+
+        cm, acc, acc_per_cls = accNaccPerCls(pred, label, self.hparams.num_classes)
+        self.logger.log_hyperparams(params=self.hparams, metrics={"metric(test_acc)": acc})
+
+        metrics = {"loss/test":loss,
+                   "acc/test": acc}
+        metrics.update({ f"cls/test/{idx}" : acc for idx, acc in enumerate(acc_per_cls)})
+
+        # for idx, acc in enumerate(acc_per_cls):
+        #     self.logger.experiment.add_scalars(f"cls/{idx}", {"val": acc})
+
+        self.log_dict(metrics, logger=True)
 
 
     def configure_optimizers(self):
@@ -230,7 +254,7 @@ def cli_main():
     parser.add_argument("--imb_factor", default=0.1, type=float)
     parser.add_argument("--balanced", default=False, type=bool)
     parser.add_argument("--retain_epoch_size", default=False, type=bool)
-    parser.add_argument('--epoch', type=int, default=200)
+    parser.add_argument('--epoch', type=int, default=1)
 
 
     parser = ACGAN.add_model_specific_args(parser)
@@ -267,9 +291,9 @@ def cli_main():
                          )
     trainer.fit(model, datamodule=dm)
 
-    # result = trainer.test(model, dataloaders=dm.test_dataloader())
+    result = trainer.test(model, dataloaders=dm.test_dataloader())
 
-    # print(result)
+    print(result)
 
 
 if __name__ == '__main__':
