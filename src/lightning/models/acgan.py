@@ -47,12 +47,14 @@ def g_cls_loss_function(fake_logit, fake_label):
 
 
 class FcNAdvModuel(nn.Module):
-    def __init__(self, linear, num_classes):
+    def __init__(self, linear, feature, num_classes):
         super(FcNAdvModuel, self).__init__()
-        self.cls = linear(in_features=512, out_features=num_classes)
-        self.adv = linear(in_features=512, out_features=1)
+        self.flatten = nn.Flatten(1)
+        self.cls = linear(in_features=feature, out_features=num_classes)
+        self.adv = linear(in_features=feature, out_features=1)
 
     def forward(self, x):
+        x = self.flatten(x)
         return self.adv(x), self.cls(x)
         # return self.adv(x)
 
@@ -92,13 +94,17 @@ class ACGAN(pl.LightningModule):
 
         if model == 'resnet18':
             self.D = resnet18(num_classes=num_classes, sn=sn)
+            self.D = nn.Sequential(*list(resnet18(num_classes=num_classes, sn=sn).children())[:-2])
+
         elif model == 'resnet34':
             self.D = resnet34(num_classes=num_classes, sn=sn)
 
         if sn:
-            self.D.fc = FcNAdvModuel(linear=snlinear, num_classes=num_classes)
+            self.D.add_module("last", FcNAdvModuel(linear=snlinear, feature=512, num_classes=10))
+            # self.D.fc = FcNAdvModuel(linear=snlinear, num_classes=num_classes)
         else:
-            self.D.fc = FcNAdvModuel(linear=linear, num_classes=num_classes)
+            self.D.add_module("last", FcNAdvModuel(linear=linear, feature=512, num_classes=10))
+            # self.D.fc = FcNAdvModuel(linear=linear, num_classes=num_classes)
 
         # self.cls = nn.CrossEntropyLoss()
 
@@ -111,7 +117,7 @@ class ACGAN(pl.LightningModule):
         # train discriminator
         if optimizer_idx == 0:
             noise = torch.randn(real_image.size(0), 128).cuda()
-            fake_label = (torch.rand(real_image.size(0), 1) * 10).long().cuda()
+            fake_label = (torch.rand(real_image.size(0)) * 10).long().cuda()
 
             fake_image = self(noise, fake_label)
             self.logger.experiment.add_images(tag="images", img_tensor=fake_image.detach().cpu(),
@@ -124,13 +130,14 @@ class ACGAN(pl.LightningModule):
             d_loss = d_adv_loss + d_cls_loss
 
             return {"loss" : d_loss}
+            # return {"loss" : d_adv_loss}
 
         # train generator
         if optimizer_idx == 1:
             noise = torch.randn(real_image.size(0), 128).cuda()
-            fake_label = (torch.rand(real_image.size(0), 1) * 10).long().cuda()
+            fake_label = (torch.rand(real_image.size(0)) * 10).long().cuda()
 
-            fake_image = self(noise)
+            fake_image = self(noise, fake_label)
             # fake_logit = self.D(fake_image)
 
             fake_adv_logit, fake_cls_logit = self.D(fake_image)
@@ -139,6 +146,7 @@ class ACGAN(pl.LightningModule):
             g_loss = g_adv_loss + g_cls_loss
 
             return {"loss": g_loss}
+            # return {"loss": g_adv_loss}
 
 
     def training_epoch_end(self, output):
@@ -149,51 +157,31 @@ class ACGAN(pl.LightningModule):
         self.log_dict({"loss/d":d_loss, "loss/g":g_loss}, logger=True)
 
 
-    # def on_train_epoch_end(self):
-    #     fixed_vector_output = self(self.fixed_noise)
+    def validation_step(self, batch, batch_idx):
+        image, label = batch
+        adc_logit, cls_logit = self.D(image)
+        loss = g_cls_loss_function(cls_logit, label)
+        pred = cls_logit.argmax(-1)
+
+        return {"loss": loss, "pred": pred, "label": label}
+
+    def validation_epoch_end(self, output):
+        loss = torch.stack([x['loss'] for x in output]).mean()
+        pred = torch.cat([x['pred'] for x in output])
+        label = torch.cat([x['label'] for x in output])
+
+        cm, acc, acc_per_cls = accNaccPerCls(pred=pred, label=label, num_class=self.hparams.num_classes)
+
+        self.log("loss/val", loss, on_epoch=True, logger=True)
+        metrics = {"acc/val": acc}
+        metrics.update({ f"cls/val/{idx}" : acc for idx, acc in enumerate(acc_per_cls)})
+        # cls_dict = { f"{idx}/train" : acc for idx, acc in enumerate(acc_per_cls)}
+        # for idx, acc in enumerate(acc_per_cls):
+        #     self.logger.experiment.add_scalars(f"cls/{idx}", {"val":acc})
+
+        self.log_dict(metrics, logger=True)
 
 
-        # pred = torch.cat([x['pred'] for x in output])
-        # label = torch.cat([x['label'] for x in output])
-
-        # self.log_dict({"loss/d":d_loss, "loss/g":g_loss})
-
-    # def validation_step(self, batch, batch_idx):
-    #     image, label = batch
-    #     logit = self(image)
-    #     loss = self.criterion(logit, label)
-    #
-    #     pred = logit.argmax(-1)
-    #     cm, acc, acc_per_cls = accNaccPerCls(pred, label, self.hparams.num_class)
-    #
-    #     metrics = {"val_loss":loss,
-    #                "val_acc": acc}
-    #     metrics.update({ f"cls_{idx}" : acc for idx, acc in enumerate(acc_per_cls)})
-    #
-    #     self.log_dict(metrics)
-    #     return metrics
-
-    # def validation_step_end(self, val_step_outputs):
-    #     # val_acc = val_step_outputs['val_acc'].cpu()
-    #     # val_loss = val_step_outputs['val_loss'].cpu()
-    #     #
-    #     # self.log('validation_acc', val_acc, prog_bar=True)
-    #     # self.log('validation_loss', val_loss, prog_bar=True)
-    #     self.log_dict(val_step_outputs)
-    #
-    # def test_step(self, batch, batch_idx):
-    #     image, label = batch
-    #     logit = self(image)
-    #     loss = self.criterion(logit, label)
-    #
-    #     pred = logit.argmax(-1)
-    #     cm, acc, acc_per_cls = accNaccPerCls(pred, label, self.hparams.num_class)
-    #
-    #     metrics = {"test_loss":loss,
-    #                "test_acc": acc}
-    #     metrics.update({ f"cls_{idx}" : acc for idx, acc in enumerate(acc_per_cls)})
-    #     self.log_dict(metrics)
-    #     return metrics
 
 
     def configure_optimizers(self):
