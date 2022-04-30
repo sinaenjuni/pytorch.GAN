@@ -255,7 +255,7 @@ def cli_main():
     parser.add_argument("--imb_factor", default=0.1, type=float)
     parser.add_argument("--balanced", default=False, type=bool)
     parser.add_argument("--retain_epoch_size", default=False, type=bool)
-    parser.add_argument('--epoch', type=int, default=1)
+    parser.add_argument('--epoch', type=int, default=200)
 
 
     parser = ACGAN.add_model_specific_args(parser)
