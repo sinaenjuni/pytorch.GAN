@@ -120,8 +120,9 @@ class ACGAN(pl.LightningModule):
             fake_label = (torch.rand(real_image.size(0)) * 10).long().cuda()
 
             fake_image = self(noise, fake_label)
-            self.logger.experiment.add_images(tag="images", img_tensor=fake_image.detach().cpu(),
-                                              global_step=self.current_epoch)
+            # self.logger.experiment.add_images(tag="images", img_tensor=fake_image.detach().cpu(),
+            #                                   global_step=self.current_epoch)
+
             real_adv_logit, real_cls_logit = self.D(real_image)
             fake_adv_logit, fake_cls_logit = self.D(fake_image.detach())
 
