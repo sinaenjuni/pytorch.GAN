@@ -273,12 +273,14 @@ def cli_main():
 
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(filename="{epoch:d}",
-        verbose=True, every_n_epochs=20
-        # save_last=True,
-        # save_top_k=1,
-        # monitor='acc/val',
-        # mode='max',
+                                                        verbose=True,
+                                                       every_n_epochs=20,
+                                                        # save_last=True,
+                                                        save_top_k=-1,
+                                                        # monitor='acc/val',
+                                                        # mode='max',
     )
+
     logger = TensorBoardLogger(save_dir="tb_logs",
                                name=f"acgan_cifar10_{args.imb_factor}",
                                default_hp_metric=False
