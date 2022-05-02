@@ -16,7 +16,7 @@ def cli_main():
     parser.add_argument("--augmentation", default=False, type=bool)
     parser.add_argument("--image_size", default=32, type=int)
     parser.add_argument("--batch_size", default=128, type=int)
-    parser.add_argument("--imb_factor", default=0.01, type=float)
+    parser.add_argument("--imb_factor", default=0.1, type=float)
     parser.add_argument("--balanced", default=False, type=bool)
     parser.add_argument("--retain_epoch_size", default=False, type=bool)
     parser.add_argument('--learning_rate', type=float, default=0.1)
@@ -42,7 +42,7 @@ def cli_main():
     #                             args.step2,
     #                             args.gamma)
 
-    acgan = ACGAN.load_from_checkpoint(f"/home/sin/git/pytorch.GAN/src/lightning/models/tb_logs/acgan_cifar10_0.01/version_1/checkpoints/epoch={args.target_model}.ckpt")
+    acgan = ACGAN.load_from_checkpoint(f"/home/sin/git/pytorch.GAN/src/lightning/models/tb_logs/acgan_cifar10_0.1/version_1/checkpoints/epoch={args.target_model}.ckpt")
 
     model = Resnet_classifier(**vars(args))
 

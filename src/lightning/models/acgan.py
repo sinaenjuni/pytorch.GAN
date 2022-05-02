@@ -54,6 +54,7 @@ class ACGAN(pl.LightningModule):
                  latent_dim,
                  la,
                  **kwargs):
+
         super(ACGAN, self).__init__()
         self.save_hyperparameters()
         self.fixed_noise = torch.randn(10, latent_dim).cuda().repeat(10, 1)
@@ -242,9 +243,9 @@ def cli_main():
     parser.add_argument("--augmentation", default=False, type=bool)
     parser.add_argument("--batch_size", default=128, type=int)
     parser.add_argument("--imb_factor", default=0.01, type=float)
-    parser.add_argument("--balanced", default=False, type=bool)
+    parser.add_argument("--balanced", default=True, type=bool)
     parser.add_argument("--retain_epoch_size", default=False, type=bool)
-    parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--epoch', type=int, default=200)
 
 
     parser = ACGAN.add_model_specific_args(parser)
@@ -268,7 +269,7 @@ def cli_main():
     )
 
     logger = TensorBoardLogger(save_dir="tb_logs",
-                               name=f"acgan_cifar10_{args.imb_factor}",
+                               name=f"acgan_cifar10_{args.imb_factor}_balancing",
                                default_hp_metric=False
                                )
     # logger.experiment.add_images()
