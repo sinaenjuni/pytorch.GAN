@@ -137,11 +137,12 @@ class ResNet(nn.Module):
 
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
-                 norm_layer=None, sn=False, **kwargs):
+                 norm_layer=None, sn=False, discriminator=False, **kwargs):
         super(ResNet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
+        self.discriminator = discriminator
 
         self.inplanes = 64
         self.dilation = 1
@@ -172,7 +173,18 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2], sn=sn)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+
+        if self.discriminator:
+            if sn:
+                self.adv = spectral_norm(nn.Linear(512 * block.expansion, 1))
+            else:
+                self.adv = nn.Linear(512 * block.expansion, num_classes)
+
+        if sn:
+            self.fc = spectral_norm(nn.Linear(512 * block.expansion, num_classes))
+        else:
+            self.fc = nn.Linear(512 * block.expansion, num_classes)
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -229,9 +241,14 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.fc(x)
 
-        return x
+        if self.discriminator:
+            cls = self.fc(x)
+            adv = self.adv(x)
+            return adv, cls
+        else:
+            x = self.fc(x)
+            return x
 
     def forward(self, x):
         return self._forward_impl(x)

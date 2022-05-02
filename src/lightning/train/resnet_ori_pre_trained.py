@@ -7,7 +7,7 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from lightning.data_module.cifar10_data_modules import ImbalancedMNISTDataModule
 
 from lightning.models.resnet import Resnet_classifier
-
+from lightning.models.acgan import ACGAN
 
 def cli_main():
     pl.seed_everything(1234)  # 다른 환경에서도 동일한 성능을 보장하기 위한 random seed 초기화
@@ -41,7 +41,18 @@ def cli_main():
     #                             args.step2,
     #                             args.gamma)
 
-    model = Resnet_classifier(**vars(args))
+    acgan = ACGAN.load_from_checkpoint("/home/sin/git/pytorch.GAN/src/lightning/models/tb_logs/acgan_cifar10_0.1/version_4/checkpoints/epoch=99.ckpt")
+    resnet = Resnet_classifier(**vars(args))
+
+    acgan_weight = list(acgan.D.children())
+    for name, weight  in resnet.named_parameters():
+        print(name)
+    for name, weight in acgan.D.named_parameters():
+        print(name)
+    for i in resnet.state_dict():
+        print(i)
+
+    resnet.load_state_dict(acgan.D.state_dict())
 
     checkpoint_callback = pl.callbacks.ModelCheckpoint(filename="{epoch:d}_{loss/val:.4}_{acc/val:.4}",
         verbose=True,
