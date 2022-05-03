@@ -63,7 +63,7 @@ def cli_main():
         mode='max',
     )
     logger = TensorBoardLogger(save_dir="tb_logs",
-                               name=f"resnet18_pre_cifar10_{args.imb_factor}",
+                               name=f"resnet18_pre_cifar10_{args.imb_factor}_bal",
                                default_hp_metric=False
                                )
     logger.log_hyperparams
