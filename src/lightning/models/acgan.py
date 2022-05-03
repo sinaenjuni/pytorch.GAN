@@ -52,13 +52,11 @@ class ACGAN(pl.LightningModule):
                  image_channel,
                  std_channel,
                  latent_dim,
-                 la,
                  **kwargs):
 
         super(ACGAN, self).__init__()
         self.save_hyperparameters()
         self.fixed_noise = torch.randn(10, latent_dim).cuda().repeat(10, 1)
-        self.la = la
 
         if sn:
             self.G = Generator(linear=snlinear,
