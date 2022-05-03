@@ -42,7 +42,8 @@ def cli_main():
     #                             args.step2,
     #                             args.gamma)
 
-    acgan = ACGAN.load_from_checkpoint(f"/home/sin/git/pytorch.GAN/src/lightning/models/tb_logs/acgan_cifar10_0.1/version_1/checkpoints/epoch={args.target_model}.ckpt")
+    # acgan = ACGAN.load_from_checkpoint(f"/home/sin/git/pytorch.GAN/src/lightning/models/tb_logs/acgan_cifar10_0.01/version_1/checkpoints/epoch={args.target_model}.ckpt")
+    acgan = ACGAN.load_from_checkpoint(f"/home/sin/git/pytorch.GAN/src/lightning/models/tb_logs/acgan_cifar10_0.1_balancing/version_0/checkpoints/epoch={args.target_model}.ckpt")
 
     model = Resnet_classifier(**vars(args))
 
